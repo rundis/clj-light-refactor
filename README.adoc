@@ -1,0 +1,67 @@
+= Clj-Light-Refactor
+Plugin that provides Clojure refactoring support in Light Table
+v0.1.1, 2015-02-15: Draft release
+:library: Asciidoctor
+:numbered:
+:idprefix:
+:toc: macro
+
+toc::[]
+
+== Introduction
+
+
+
+== Usage
+
+=== Preconditions (Important !)
+* The LightTable Clojure plugin (bundles with Light Table so a no-op)
+* You need the refactor-nrepl middleware setup (see below)
+
+
+==== refactor-nrepl
+Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
+[source,clojure]
+----
+:plugins [[refactor-nrepl "0.2.2"]] ;; or a more recent version
+----
+
+
+=== Introduce ns
+Command: **Clojure refactor: Introduce ns**
+
+Adds toplevel namespace definition. Deduces ns from filename of editor and source-paths in project.clj.
+Finds project.clj either by explicit connection or searching up for a project.clj file.
+
+WARNING: If you have overridden source-paths in a profile definition in your project.clj. This feature will not
+pick up that (currently)
+
+
+=== Dependency autocompletion
+Autocomplete functionality for filling in dependency vectors in your _project.clj_ files.
+
+.Usage: (To be improved!)
+* Open project.clj file
+* Ensure it's tied to a project connection (Do an eval (cmd/ctrl +l) or invoke the command **Clojure refactor: Ensure editor connected**)
+* When you start typing (might lag a little the first time), the autocompleter will suggest from all available clojars artifacts
+* When you select an item from the autocompleter one of two things happens:
+** If the selected artifact has only one version, the version indentifier is filled in
+** If the artifact has multiple versions, a select with version (sorted) is shown for selection
+
+NOTE: This feature has quite a few rough edges, so consider it a incubating idea more than anything else
+
+
+
+
+
+== Credits
+* https://github.com/clojure-emacs/refactor-nrepl[refactor-nrepl] - nREPL middleware to support refactorings in an editor agnostic way.
+
+== Contributing
+Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
+
+== History
+* Pending first version
+
+== License
+MIT, same as Light Table. See LICENSE.md for details.

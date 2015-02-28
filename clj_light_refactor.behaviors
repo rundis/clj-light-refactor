@@ -1,0 +1,7 @@
+[[:app :lt.objs.plugins/load-css "css/refactor.css"]
+ [:editor.clj :lt.plugins.cljrefactor/clj-refactor.maybe-project]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/artifact-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-version-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-version-hints]]
