@@ -163,6 +163,14 @@
 
 ;; ------------- Refactor functions ---------------
 
+(behavior ::ensure-connected
+          :triggers #{:refactor.connect}
+          :reaction (fn [ed]
+                      (object/raise ed
+                                    :eval.custom
+                                    "(println \"ping\")"
+                                    {:result-type :no-op :verbatim true})))
+
 (defn trigger-ed-con [ed]
   (object/raise ed
                 :eval.custom
@@ -173,7 +181,8 @@
 (cmd/command {:command ::ping-repl
               :desc "Clojure refactor: Ensure editor connected"
               :exec (fn []
-                      (trigger-ed-con (pool/last-active)))})
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :refactor.connect)))})
 
 
 

@@ -21,7 +21,6 @@
 (behavior ::clear!
           :triggers #{:clear!}
           :reaction (fn [this]
-                      ;;(object/merge! this {:timeout nil :results (array) :result-count 0 ::time nil ::filesSearched nil :position [0 -1]})
                       (dom/empty (dom/$ :ul.res (object/->content this)))))
 
 (defui result-entry [entry]
@@ -65,11 +64,16 @@
                     :items items})) (keys x))))))
 
 
-(defn find-symbol-op [ns symbol]
-  (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
-       " (def tr (refactor-nrepl.client/connect))"
-       " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000)"
-       " {:op \"refactor\" :refactor-fn \"find-symbol\" :ns '" ns " :name \"" symbol \""}))"))
+(defn find-symbol-op [ed symbol]
+  (let [filename (-> @ed :info :path)
+        ns (-> @ed :info :ns)]
+    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
+         " (def z-ns " (if ns
+                         (str "'" ns)
+                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
+         " (def tr (refactor-nrepl.client/connect))"
+         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000)"
+         " {:op \"refactor\" :refactor-fn \"find-symbol\" :ns z-ns :name \"" symbol \""}))")))
 
 
 (behavior ::find-symbol.res
@@ -77,7 +81,26 @@
           :reaction (fn [ed res]
                       (let [usages (-> res :results first :result)]
                         (show-results refactor-usages (usages->view usages))
+                        (object/update! refactor-usages [:search-for :namespace] (fn [_]
+                                                                                   (-> @ed :info :ns)))
                         (notifos/done-working "Find usages completed"))))
+
+
+(behavior ::find-symbol.start
+          :triggers #{:refactor.find-symbol}
+          :reaction (fn [this ed token]
+                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
+                            op (find-symbol-op ed (:string token))]
+                        (tabs/add-or-focus! refactor-usages)
+                        (object/update! this [:search-for] (fn [_]
+                                                             {:symbol (:string token)
+                                                              :namespace ns}))
+                        (object/raise this :clear!)
+                        (object/raise ed
+                                      :eval.custom
+                                      (find-symbol-op ed (:string token))
+                                      {:result-type :refactor.find-symbol :verbatim true}))))
+
 
 
 (defn search-for [this]
@@ -94,25 +117,15 @@
                          [:div.searcher
                           [:p (bound this search-for)]]]
                         ))
-;; (doseq [obj (object/by-tag :refactor.usages)]
-;;   (object/destroy! obj))
+;;  (doseq [obj (object/by-tag :refactor.usages)]
+;;    (object/destroy! obj))
 
 (def refactor-usages (object/create ::refactor-usages))
 
 
 (cmd/command {:command ::find-symbol
-              :desc "Clojure refactor: Find symbol"
+              :desc "Clojure refactor: Find usages"
               :exec (fn []
-                      (let [ed (pool/last-active)
-                            token (when ed (lt.plugins.clojure/find-symbol-at-cursor ed))
-                            ns (when ed (-> @ed :info :ns))]
-                        (when (and token ns)
-                          (tabs/add-or-focus! refactor-usages)
-                          (object/update! refactor-usages [:search-for] (fn [_]
-                                                                          {:symbol (:string token)
-                                                                           :namespace ns}))
-                          (object/raise refactor-usages :clear!)
-                          (object/raise ed
-                                        :eval.custom
-                                        (find-symbol-op ns (:string token))
-                                        {:result-type :refactor.find-symbol :verbatim true}))))})
+                      (when-let [ed (pool/last-active)]
+                        (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
+                          (object/raise refactor-usages :refactor.find-symbol ed token))))})
