@@ -159,13 +159,48 @@
                         hints)))
 
 
-(cmd/command {:command ::introduce-ns
+
+
+;; ------------- Refactor functions ---------------
+
+(defn trigger-ed-con [ed]
+  (object/raise ed
+                :eval.custom
+                "(println \"ping\")"
+                {:result-type :no-op :verbatim true}))
+
+
+(cmd/command {:command ::ping-repl
               :desc "Clojure refactor: Ensure editor connected"
               :exec (fn []
-                      (let [ed (pool/last-active)]
-                        (object/raise ed
-                                      :eval.custom
-                                      "(println \"ping\")"
-                                      {:result-type :no-op :verbatim true})))})
+                      (trigger-ed-con (pool/last-active)))})
 
 
+
+
+
+
+
+;; TODO: Pending 0.3.0 release of refactor-nrepl
+;; (defn clean-ns-op [path]
+;;   (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
+;;        "(def tr (refactor-nrepl.client/connect))"
+;;        "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"clean-ns\" :path \"" path "\"}))"))
+
+
+;; (behavior ::clean-ns.res
+;;           :triggers #{:editor.eval.clj.result.refactor.clean-ns}
+;;           :reaction (fn [editor res]
+;;                       (println "Clean ns result")
+;;                       (println res)))
+
+
+;; (cmd/command {:command ::clean-ns
+;;               :desc "Clojure refactor: Cleanup ns"
+;;               :exec (fn []
+;;                       (let [ed (pool/last-active)]
+;;                         (when-let [path (-> @ed :info :path)]
+;;                           (object/raise ed
+;;                                         :eval.custom
+;;                                         (clean-ns-op path)
+;;                                         {:result-type :refactor.clean-ns :verbatim true}))))})
