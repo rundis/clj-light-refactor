@@ -23,7 +23,8 @@ toc::[]
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-:plugins [[refactor-nrepl "0.2.2"]] ;; or a more recent version
+;; or a more recent version (doesn't work with 0.3.0-SNAPSHOT currently)
+:plugins [[refactor-nrepl "0.2.2"]]
 ----
 
 
@@ -51,7 +52,16 @@ Autocomplete functionality for filling in dependency vectors in your _project.cl
 NOTE: This feature has quite a few rough edges, so consider it a incubating idea more than anything else
 
 
+=== Find usages
+Finds occurrences of symbols like defs and defns both where they are defined (if available) and where they are used.
 
+.Usage:
+* Move your cursor to an applicable symbol
+* Invoke the command: **Clojure refactor: Find usages**
+* If the editor isn't connected to a project, it will try to do so using Light Table std connect feature.
+* Search results are shown in a separate tab for "Find usages" (You can move this tab to a separate tabset, it will be reused for all find usages searches)
+
+NOTE: If there wasn't a connection for your project in the light table connect bar, you probably will have to reinvoke the command
 
 
 == Credits
