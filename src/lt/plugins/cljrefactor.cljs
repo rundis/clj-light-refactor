@@ -144,17 +144,17 @@
           :reaction (fn [editor res]
                       (let [artifacts (-> res :results first :result first :value (s/split #" "))
                             hints (create-artifact-hints editor artifacts)]
-                        (object/merge! editor {::hints hints})
+                        ;;(object/merge! editor {::hints hints})
+                        (object/merge! editor {::dep-hints hints})
                         (object/raise auto-complete/hinter :refresh!))))
 
 (behavior ::artifact-hints
           :triggers #{:hints+}
           :reaction (fn [ed hints token]
-                      (when (not= token (::token @ed))
-                        (object/merge! ed {::token token})
-                        (when-not (::hints @ed)
-                          (object/raise ed :artifact.hints.update!)))
-                      (if-let [clj-hints (::hints @ed)]
+                      (object/merge! ed {::token token})
+                      (when-not (::dep-hints @ed)
+                        (object/raise ed :artifact.hints.update!))
+                      (if-let [clj-hints (::dep-hints @ed)]
                         clj-hints
                         hints)))
 
@@ -170,13 +170,6 @@
                                     :eval.custom
                                     "(println \"ping\")"
                                     {:result-type :no-op :verbatim true})))
-
-(defn trigger-ed-con [ed]
-  (object/raise ed
-                :eval.custom
-                "(println \"ping\")"
-                {:result-type :no-op :verbatim true}))
-
 
 (cmd/command {:command ::ping-repl
               :desc "Clojure refactor: Ensure editor connected"
@@ -232,3 +225,53 @@
                                         :eval.custom
                                         (clean-ns-op path)
                                         {:result-type :refactor.clean-ns :verbatim true}))))})
+
+
+
+;; Hotload dependency (available in project.clj only)
+
+(behavior ::hotload-dep.res
+          :triggers #{:editor.eval.clj.result.refactor.hotload-dep}
+          :reaction (fn [ed res]
+                      (let [line (-> res :results first :meta :line)]
+                        (if-let [err (-> res :results first :result first :error)]
+                          (object/raise ed :editor.exception err {:line line})
+                          (object/raise ed :editor.result "Loaded ok!" {:line line})))))
+
+
+(defn parse-dep [dep]
+  (try
+    (let [dill (cljs.reader/read-string dep)]
+      (if (= (count dill) 2) dill nil))
+    (catch :default e
+      nil)))
+
+(defn hotload-dep-op [dep]
+  (let [coords (str "\"[" (first dep) " \\\"" (second dep) \\\""]\"")]
+    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
+         " (def tr (refactor-nrepl.client/connect))"
+         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"hotload-dependency\" :coordinates " coords "}))")))
+
+(behavior ::hotload-dep!
+          :triggers #{:refactor.hotload-dep!}
+          :reaction (fn [ed coords]
+                      (object/raise ed
+                                    :eval.custom
+                                    (hotload-dep-op coords)
+                                    {:result-type :refactor.hotload-dep :verbatim true})))
+
+
+
+(cmd/command {:command ::hotload-dep
+              :desc "Clojure refactor: Hotload dependency"
+              :exec (fn []
+                      (let [ed (pool/last-active)
+                            pos (when ed (editor/->cursor ed))]
+                        (when ed
+                          (cmd/exec! :paredit.select.parent)
+                          (let [candidate  (editor/selection ed)
+                                coords (parse-dep candidate)]
+                            (editor/move-cursor ed pos)
+                            (when (and coords (-> @ed :info :path))
+                              (object/raise ed :refactor.hotload-dep! coords))))))})
+

@@ -16,6 +16,7 @@ toc::[]
 
 === Preconditions (Important !)
 * The LightTable Clojure plugin (bundles with Light Table so a no-op)
+* The LightTable Paredit plugin (__TODO: Hoping to get rid of this__)
 * You need the refactor-nrepl middleware setup (see below)
 
 
@@ -55,6 +56,17 @@ Autocomplete functionality for filling in dependency vectors in your _project.cl
 
 NOTE: This feature has quite a few rough edges, so consider it a incubating idea more than anything else
 
+
+=== Hotload dependency
+Feature to allow hotloading of a new dependeny in your current repl session.
+
+.Usage
+* Open project.clj file
+* Add a dependency in the __:dependency__ vector
+* With the cursor inside the vector for your dep select the command **Refactor: Hotload dependency**
+* Any errors are displayed inline
+
+NOTE: The feature only clojars artifacts. Be aware there is no unload feature !
 
 === Find usages
 Finds occurrences of symbols like defs and defns both where they are defined (if available) and where they are used.

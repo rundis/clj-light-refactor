@@ -6,11 +6,14 @@
  [:editor.clj :lt.plugins.cljrefactor.usages/find-symbol.res]
  [:editor.clj :lt.plugins.cljrefactor/clean-ns.res]
 
+ [:editor.clj.project-file :-lt.plugins.auto-complete/textual-hints] ; just messes with the artifacts completions
  [:editor.clj.project-file :lt.plugins.cljrefactor/artifact-hints]
  [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-hints]
  [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-hints]
  [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-version-hints]
  [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-version-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/hotload-dep!]
+ [:editor.clj.project-file :lt.plugins.cljrefactor/hotload-dep.res]
 
 
  [:refactor.usages :lt.plugins.cljrefactor.usages/on-close]

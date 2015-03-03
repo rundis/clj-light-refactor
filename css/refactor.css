@@ -1,9 +1,9 @@
 div.artifact-versions {
   position: relative;
+  display: inline-block;
   background: #3b3f41;
   padding:0;
   margin: 0;
-
 }
 
 
@@ -13,6 +13,7 @@ div.artifact-versions select {
   font-size: inherit;
   font-family: inherit;
   font-size: 90%;
+  color: white;
   background: #3b3f41;
   border: 1px solid #3b3f41;
   padding: 2px;
