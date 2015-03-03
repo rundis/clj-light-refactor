@@ -23,8 +23,12 @@ toc::[]
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-;; or a more recent version (doesn't work with 0.3.0-SNAPSHOT currently)
+;; if you just want to try out Dependency autocompletion and find usages
 :plugins [[refactor-nrepl "0.2.2"]]
+
+;; If you'd like to try out the bleeding edge stuff like
+:plugins [[refactor-nrepl "0.3.0-SNAPSHOT"]
+          [cider/cider-nrepl "0.8.2"]]
 ----
 
 
@@ -62,6 +66,19 @@ Finds occurrences of symbols like defs and defns both where they are defined (if
 * Search results are shown in a separate tab for "Find usages" (You can move this tab to a separate tabset, it will be reused for all find usages searches)
 
 NOTE: If there wasn't a connection for your project in the light table connect bar, you probably will have to reinvoke the command
+
+
+=== Cleanup ns
+Will clean up your namespace definition (removing unused, sort etc). See https://github.com/clojure-emacs/refactor-nrepl#clean-ns[here] for details
+
+.Usage:
+* When in an editor invoke the command **Clojure refactor: Cleanup ns**
+* If any cleanup was necessary, your namespace declaration was updated
+
+NOTE: The command works on the file, so you need to make sure you saved any changes to the namespace declaration
+before you invoke it. If replacement was performed, the changes are not automatically saved.
+
+
 
 
 == Credits

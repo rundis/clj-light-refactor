@@ -186,30 +186,49 @@
 
 
 
+(defn find-line-containing [ed txt]
+  (let [res (array)]
+    (.eachLine (.getDoc (editor/->cm-ed ed))
+               (fn [line-handle]
+                 (when (.contains (.-text line-handle) txt)
+                   (.push res (.-line(.lineInfo (editor/->cm-ed ed) line-handle))))))
+    (first (seq res))))
 
 
+(defn replace-ns [cleaned-ns]
+  (let [ed (pool/last-active)]
+    (let [pos (editor/->cursor ed)
+          bm (editor/bookmark ed pos nil)
+          nsl (find-line-containing ed "(ns")
+          start {:line nsl :ch 1}]
+      (editor/move-cursor ed start) ; not completely safe !
+      (cmd/exec! :paredit.select.parent)
+      (editor/replace-selection ed cleaned-ns)
+      (editor/set-selection ed start (editor/->cursor ed))
+      (editor/indent-selection ed "smart")
+      (editor/move-cursor ed (lt.util.cljs/js->clj (.find bm)))
+      (.clear bm))))
 
 
-;; TODO: Pending 0.3.0 release of refactor-nrepl
-;; (defn clean-ns-op [path]
-;;   (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
-;;        "(def tr (refactor-nrepl.client/connect))"
-;;        "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"clean-ns\" :path \"" path "\"}))"))
+(defn clean-ns-op [path]
+  (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
+       "(def tr (refactor-nrepl.client/connect))"
+       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"clean-ns\" :path \"" path "\"}))"))
 
 
-;; (behavior ::clean-ns.res
-;;           :triggers #{:editor.eval.clj.result.refactor.clean-ns}
-;;           :reaction (fn [editor res]
-;;                       (println "Clean ns result")
-;;                       (println res)))
+(behavior ::clean-ns.res
+          :triggers #{:editor.eval.clj.result.refactor.clean-ns}
+          :reaction (fn [editor res]
+                      (when-let [cleaned-ns (-> res :results first :result first :ns)]
+                        (replace-ns cleaned-ns))))
 
 
-;; (cmd/command {:command ::clean-ns
-;;               :desc "Clojure refactor: Cleanup ns"
-;;               :exec (fn []
-;;                       (let [ed (pool/last-active)]
-;;                         (when-let [path (-> @ed :info :path)]
-;;                           (object/raise ed
-;;                                         :eval.custom
-;;                                         (clean-ns-op path)
-;;                                         {:result-type :refactor.clean-ns :verbatim true}))))})
+(cmd/command {:command ::clean-ns
+              :desc "Clojure refactor: Cleanup ns"
+              :exec (fn []
+                      (let [ed (pool/last-active)]
+                        (when-let [path (-> @ed :info :path)]
+                          (object/raise ed
+                                        :eval.custom
+                                        (clean-ns-op path)
+                                        {:result-type :refactor.clean-ns :verbatim true}))))})
