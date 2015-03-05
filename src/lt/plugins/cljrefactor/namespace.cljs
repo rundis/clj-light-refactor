@@ -62,14 +62,14 @@
 
 ;; TODO: Handle alternate require forms ?
 (defn add-require [ns-decl req]
-  (let [req-idx (first (keep-indexed #(when (= (first %2) :require) %1) (drop 2 ns-decl)))
+  (let [req-idx (first (keep-indexed #(when (= (keyword (first %2)) :require) %1) (drop 2 ns-decl)))
         reqs (when req-idx (nth ns-decl (+ 2 req-idx)))]
     (if reqs
       (concat (take (+ 2 req-idx) ns-decl)
               (list (concat reqs [req]))
               (drop (+ 3 req-idx) ns-decl))
       (concat (take 2 ns-decl)
-              '((:require [req]))
+              (list [:require [req]])
               (drop 2 ns-decl)))))
 
 
@@ -85,7 +85,6 @@
                             src-dirs (when prj-file (prj-parser/src-dirs (prj-parser/parse-project-file prj-file)))]
                         (when prj-file
                           (let [ns-stmt (nsify (prj-parser/find-sub-path (prj-parser/project-path ed) path src-dirs))]
-                            (println "Do the stuff")
                             (editor/move-cursor ed {:line 0 :ch 0})
                             (editor/insert-at-cursor ed ns-stmt)
                             (editor/move-cursor ed (update-in pos [:line] inc))))))})
@@ -103,7 +102,8 @@
           :triggers #{:editor.eval.clj.result.refactor.clean-ns}
           :reaction (fn [ed res]
                       (when-let [cleaned-ns (-> res :results first :result first :ns)]
-                        (replace-ns ed cleaned-ns))))
+                        (when (seq cleaned-ns)
+                          (replace-ns ed cleaned-ns)))))
 
 
 (cmd/command {:command ::clean-ns

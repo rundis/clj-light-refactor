@@ -16,7 +16,7 @@ toc::[]
 
 === Preconditions (Important !)
 * The LightTable Clojure plugin (bundles with Light Table so a no-op)
-* The LightTable Paredit plugin (__TODO: Hoping to get rid of this__)
+* The LightTable Paredit plugin (__TODO: Hoping to get rid of this as a dependency__)
 * You need the refactor-nrepl middleware setup (see below)
 
 
@@ -27,10 +27,15 @@ Add the following, either in your project's __project.clj__, or in the :user pro
 ;; if you just want to try out Dependency autocompletion and find usages
 :plugins [[refactor-nrepl "0.2.2"]]
 
-;; If you'd like to try out the bleeding edge stuff like
+;; If you'd like to try out the bleeding edge stuff (i.e the rest)
 :plugins [[refactor-nrepl "0.3.0-SNAPSHOT"]
           [cider/cider-nrepl "0.8.2"]]
 ----
+
+==== Limitations
+* Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
+* clean-ns doesn't handle/analyze require import and refer (:refer, :import :refer does). This is a
+downstream https://github.com/clojure-emacs/refactor-nrepl/issues/32[issue] with refactor-nrepl
 
 
 === Introduce ns
@@ -90,7 +95,27 @@ Will clean up your namespace definition (removing unused, sort etc). See https:/
 NOTE: The command works on the file, so you need to make sure you saved any changes to the namespace declaration
 before you invoke it. If replacement was performed, the changes are not automatically saved.
 
+=== Resolve missing
+Tries to resolve the symbol at point and require or import the missing var.
 
+.Usage:
+* When in an editor place the cursor at a symbol and invoke the command **Clojure refactor: Resolve missing**
+* If only one result, it is added to the ns declaration, if more than one suggestion is available you
+are prompted to select one
+* When added the ns form is also reformatted
+
+TIP: You can undo the effect of this command using cmd/ctrl+z
+
+Example:
+[source,clojure]
+----
+query ;; If you invoke the command with clojure.java.jdbc in your classpath
+
+;; adds the following to your namespace :require form
+[clojure.java.jdbc :as jdbc] ;; you'll then have to prefix your symbol manually e.g: jdbc/query
+----
+
+**TODO: Support custom alias (j/query resulting in [clojure.java.jdbc :as j])**
 
 
 == Credits

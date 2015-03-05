@@ -66,7 +66,7 @@
 
 (defn- form-is? [form type]
   (and (sequential? form)
-       (= (first form) type)))
+       (= (keyword (first form)) type)))
 
 (defn- pprint-gen-class-form
   [[_ & elems]]
