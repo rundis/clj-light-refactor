@@ -5,65 +5,15 @@
             [lt.objs.files :as files]
             [lt.objs.command :as cmd]
             [lt.objs.notifos :as notifos]
-            [lt.plugins.clojure :as cloj]
             [lt.plugins.auto-complete :as auto-complete]
             [clojure.string :as s]
-            [lt.plugins.cljrefactor.artifact-version :as av-sel])
+            [lt.plugins.cljrefactor.artifact-version :as av-sel]
+            [lt.plugins.cljrefactor.select :as sel]
+            [lt.plugins.cljrefactor.namespace :as nsl]
+            [lt.plugins.cljrefactor.pprint :refer [pprint-ns]])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
-(defn project-path [ed]
-  (if-let [c (get-in @ed [:client :default])]
-    (:dir @c)
-    (:project-path (cloj/find-project (:info @ed)))))
-
-(defn get-project-file [ed]
-  (when-let [path (project-path ed)]
-    (files/join path "project.clj")))
-
-(defn prj->map [p]
-  (conj {} (map #(hash-map (first %) (second %))
-        (partition 2 (drop 3 p)))))
-
-(defn parse-project-file [file]
-  (-> (:content (files/open-sync file))
-      (s/replace #"\\" "\\\\")
-      (cljs.reader/read-string)
-      (prj->map)))
-
-(defn src-dirs [prj]
-  (or (:source-paths prj) ["src"]))
-
-
-
-(defn nsify [sub-path]
-  (-> (files/without-ext sub-path)
-      (s/split (re-pattern files/separator))
-      ((fn [parts]
-         (map #(s/replace % #"_" "-") parts)))
-      (#(s/join "." %))
-      (#(str "(ns " % ")\n"))))
-
-
-(defn find-sub-path [prj-dir path src-dirs]
-  (some #(if (.contains path (files/join prj-dir %))
-           (.substring path (+  1 (count (files/join prj-dir %))))
-           nil) src-dirs))
-
-
-(cmd/command {:command ::introduce-ns
-              :desc "Clojure refactor: Introduce ns"
-              :exec (fn []
-                      (let [ed (pool/last-active)
-                            pos (editor/->cursor ed)
-                            prj-file (get-project-file ed)
-                            path (-> @ed :info :path)
-                            src-dirs (when prj-file (src-dirs (parse-project-file prj-file)))]
-                        (when prj-file
-                          (let [ns-stmt (nsify (find-sub-path (project-path ed) path src-dirs))]
-                            (editor/move-cursor ed {:line 0 :ch 0})
-                            (editor/insert-at-cursor ed ns-stmt)
-                            (editor/move-cursor ed (update-in pos [:line] inc))))))})
 
 
 (behavior ::clj-refactor.maybe-project
@@ -96,16 +46,24 @@
                                       (artifact-version-list artifact)
                                       {:result-type :refactor.artifact-versions :verbatim true}))))
 
+(behavior ::artifact-version-selected
+          :triggers #{:artifact-version.selected}
+          :reaction (fn [ed version]
+                      (editor/insert-at-cursor ed (str "\"" version "\""))
+                      (editor/focus ed)))
+
 
 (behavior ::finish-artifact-version-hints
           :triggers #{:editor.eval.clj.result.refactor.artifact-versions}
-          :reaction (fn [editor res]
+          :reaction (fn [ed res]
                       (let [vs (-> res :results first :result first :value (s/split #" "))
                             hints (map #(do #js {:completion %}) vs)]
                         (if (> (count vs) 1)
-                          (av-sel/make {:ed editor :items vs :pos (editor/->cursor editor)})
-                          (editor/insert-at-cursor editor (str "\"" (first vs) "\""))))))
-
+                          (sel/make {:ed ed
+                                     :behavior :artifact-version.selected
+                                     :items vs
+                                     :pos (editor/->cursor ed)})
+                          (object/raise ed :artifact-version.selected (first vs))))))
 
 
 (defn artifact-list []
@@ -179,52 +137,6 @@
 
 
 
-(defn find-line-containing [ed txt]
-  (let [res (array)]
-    (.eachLine (.getDoc (editor/->cm-ed ed))
-               (fn [line-handle]
-                 (when (.contains (.-text line-handle) txt)
-                   (.push res (.-line(.lineInfo (editor/->cm-ed ed) line-handle))))))
-    (first (seq res))))
-
-
-(defn replace-ns [cleaned-ns]
-  (let [ed (pool/last-active)]
-    (let [pos (editor/->cursor ed)
-          bm (editor/bookmark ed pos nil)
-          nsl (find-line-containing ed "(ns")
-          start {:line nsl :ch 1}]
-      (editor/move-cursor ed start) ; not completely safe !
-      (cmd/exec! :paredit.select.parent)
-      (editor/replace-selection ed cleaned-ns)
-      (editor/set-selection ed start (editor/->cursor ed))
-      (editor/indent-selection ed "smart")
-      (editor/move-cursor ed (lt.util.cljs/js->clj (.find bm)))
-      (.clear bm))))
-
-
-(defn clean-ns-op [path]
-  (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
-       "(def tr (refactor-nrepl.client/connect))"
-       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"clean-ns\" :path \"" path "\"}))"))
-
-
-(behavior ::clean-ns.res
-          :triggers #{:editor.eval.clj.result.refactor.clean-ns}
-          :reaction (fn [editor res]
-                      (when-let [cleaned-ns (-> res :results first :result first :ns)]
-                        (replace-ns cleaned-ns))))
-
-
-(cmd/command {:command ::clean-ns
-              :desc "Clojure refactor: Cleanup ns"
-              :exec (fn []
-                      (let [ed (pool/last-active)]
-                        (when-let [path (-> @ed :info :path)]
-                          (object/raise ed
-                                        :eval.custom
-                                        (clean-ns-op path)
-                                        {:result-type :refactor.clean-ns :verbatim true}))))})
 
 
 
@@ -275,3 +187,56 @@
                             (when (and coords (-> @ed :info :path))
                               (object/raise ed :refactor.hotload-dep! coords))))))})
 
+
+;; -------- Resolve missing ---------------
+
+(behavior ::resolve-missing-selected
+          :triggers #{:resolve-missing.selected}
+          :reaction (fn [ed item]
+                      ;; TODO - Handle import !
+                      (let [token (lt.plugins.clojure/find-symbol-at-cursor ed)
+                            alias (last (s/split (:label item) "."))
+                            dep [(:label item) :as alias]]
+                        (nsl/replace-ns ed
+                                        (pprint-ns
+                                         (nsl/add-require
+                                          (:ns (nsl/get-ns-decl ed)) dep)))
+                        (editor/focus ed))))
+
+
+(defn resolve-missing-op [sym]
+  (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
+       "(def tr (refactor-nrepl.client/connect))"
+       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"resolve-missing\" :symbol \"" sym "\"}))"))
+
+
+(behavior ::resolve-missing-res
+          :triggers #{:editor.eval.clj.result.refactor.resolve-missing}
+          :reaction (fn [ed res]
+                      (let [{:keys [candidates type]} (-> res :results first :result first)]
+                        (when (seq candidates)
+                          (let [items (map #(hash-map :type type :label %) (s/split candidates " "))]
+                            (if (= (count items) 1)
+                              (object/raise ed :resolve-missing.selected (first items))
+                              (sel/make {:ed ed
+                                         :behavior :resolve-missing.selected
+                                         :pos (editor/->cursor ed)
+                                         :items items})))))))
+
+
+
+(behavior ::resolve-missing!
+          :triggers #{:refactor.resolve-missing!}
+          :reaction (fn [ed sym]
+                      (object/raise ed
+                                    :eval.custom
+                                    (resolve-missing-op sym)
+                                    {:result-type :refactor.resolve-missing :verbatim true})))
+
+
+(cmd/command {:command ::resolve-missing
+              :desc "Clojure refactor: Resolve missing"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
+                          (object/raise ed :refactor.resolve-missing! (:string token)))))})

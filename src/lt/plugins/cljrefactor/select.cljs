@@ -1,4 +1,4 @@
-(ns lt.plugins.cljrefactor.artifact-version
+(ns lt.plugins.cljrefactor.select
   (:require [lt.object :as object]
             [lt.objs.command :as cmd]
             [lt.objs.editor.pool :as pool]
@@ -10,18 +10,20 @@
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
-(defui select-item [idx item]
-  [:option {:value item :selected (= idx 0)} item])
-
-(defui select-form [this items]
-  [:div.artifact-versions
-   [:select {:size (count items)}
-    (map-indexed select-item items)]])
-
 (defn remove-form [this]
   ;(.clear (:mark @this))
   (object/raise this :clear)
   (object/destroy! this))
+
+
+(defui select-item [this idx item]
+  [:option {:value idx
+            :selected (= idx 0)} (if (map? item) (:label item) item)])
+
+(defui select-form [this items]
+  [:div.refactor-select
+   [:select {:size (count items)}
+    (map-indexed (partial select-item this) items)]])
 
 
 (defn on-keydown [this ed ev]
@@ -31,19 +33,23 @@
      (or (= 13 kc) (= 9 kc)) (do
                                (dom/stop-propagation ev)
                                (dom/prevent ev)
-                               (let [version (str "\"" (.-innerHTML (dom/$ "option:checked" el)) "\"")]
+                               (let [idx  (.-value (dom/$ "option:checked" el))
+                                     item (nth (vec (:items @this)) idx)
+                                     the-ed (:ed @this)
+                                     beh (:behavior @this)]
                                  (remove-form this)
-                                 (editor/insert-at-cursor ed version)
-                                 (editor/focus ed)))
+                                 (object/raise the-ed beh item)))
+
      (= 27 kc) (do
                  (dom/stop-propagation ev)
                  (dom/prevent ev)
                  (remove-form this)
                  (editor/focus ed)))))
 
-(object/object* ::artifact-select-form
+
+(object/object* ::refactor-select-form
                 :triggers #{:click :clear!}
-                :tags #{:inline :inline.artifact.select.form}
+                :tags #{:inline :inline.refactor.select.form}
                 :init (fn [this info]
                         (when-let [ed (editor/->cm-ed (:ed info))]
                           (let [content (select-form this (:items info))
@@ -68,8 +74,5 @@
 
 (defn make [info]
   ;; TODO: Have to figure out how to position select absolute, and still display on top of existing text
-  ;;   (dom/set-css
-  ;;    (dom/$ "div.CodeMirror-lines" (object/->content (:ed info)))
-  ;;    {:position "absolute" :opacity 0.99 :z-index 1})
-  ;;   (.log js/console (dom/$ "div.CodeMirror-lines" (object/->content (:ed info))))
-  (object/create ::artifact-select-form info))
+  (object/create ::refactor-select-form info))
+

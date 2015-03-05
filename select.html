@@ -1,0 +1,50 @@
+<html>
+<style>
+    .CodeMirror-hints { position: absolute; z-index: 1000000000000000; overflow: hidden; list-style: none;  margin: 0; padding: 2px;  border-radius: 2px; border: 1px solid #3b3f41;  background: #3b3f41; font-size: 90%; font-family: inherit;  max-height: 4em; }
+    .CodeMirror-hints ul { overflow-y:auto; max-height:4em; }
+    .CodeMirror-hints ul li { margin: 0; padding: 0 4px; border-radius: 2px; max-width: 60em; overflow: hidden; white-space: pre; color: #ccc; cursor: pointer; }
+    .CodeMirror-hints .selected { background: #616161; color: #f4f4f4; }
+    .CodeMirror-hints ul::-webkit-scrollbar-thumb { background: #606970; border-color: #606970; }
+    .CodeMirror-hints a { color: inherit; }
+</style>
+
+<body>
+    <p>My super select</p>
+    <span>A span</span>
+
+    <div class="CodeMirror-hints">
+    <ul tabindex="1">
+        <li class="selected"><a href="#">Item 1</a></li>
+        <li><a href="#">Item 2</a></li>
+        <li><a href="#">Item 3</a></li>
+        <li><a href="#">Item 4</a></li>
+        <li><a href="#">Item 5</a></li>
+        <li><a href="#">Item 6</a></li>
+    </ul>
+    </div>
+
+    <span> Another span</span>
+
+    <script>
+        var findSelected = function(items) {
+            for (i=0; i<items.length; i++) {
+                var item = items[i];
+                if(item.className === "selected") {return i;}
+            }
+        };
+
+
+        var ul = document.querySelector(".CodeMirror-hints");
+        document.querySelectorAll(".CodeMirror-hints li")[0].focus();
+
+        ul.addEventListener("keypress", function(ev) {
+            console.log("keypressed");
+            console.log(ev);
+        });
+
+
+
+     </script>
+</body>
+</html>
+
