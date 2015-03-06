@@ -5,6 +5,7 @@
             [lt.objs.files :as files]
             [lt.objs.command :as cmd]
             [lt.objs.notifos :as notifos]
+            [lt.objs.console :as console]
             [lt.plugins.auto-complete :as auto-complete]
             [clojure.string :as s]
             [lt.plugins.cljrefactor.artifact-version :as av-sel]
@@ -189,19 +190,47 @@
 
 
 ;; -------- Resolve missing ---------------
+(defn get-symbol-token [ed]
+  (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
+    (zipmap [:symbol :alias] (reverse (s/split (:string token) "/")))))
+
+(defn add-missing-require [ed item]
+  (let [symbol-token (get-symbol-token ed)
+        a (if-let [a (:alias symbol-token)]
+            a
+            (last (s/split (:label item) ".")))]
+    (nsl/replace-ns ed
+                    (pprint-ns
+                     (nsl/add-require
+                      (:ns (nsl/get-ns-decl ed)) [(:label item) :as a])))))
+
+(defn add-missing-import [ed item]
+  (nsl/replace-ns ed
+                  (pprint-ns
+                   (nsl/add-import
+                    (:ns (nsl/get-ns-decl ed)) (list (:label item))))))
+
+
+(defn add-missing-type [ed item]
+  (let [req (s/replace (str (:label item)) #"\.([^.]*)$" "")
+        imp (:label item)
+        ns-decl (:ns (nsl/get-ns-decl ed))]
+    (nsl/replace-ns ed (-> (:ns (nsl/get-ns-decl ed))
+                           (nsl/add-require req)
+                           (nsl/add-import (list imp))
+                           (pprint-ns)))))
+
 
 (behavior ::resolve-missing-selected
           :triggers #{:resolve-missing.selected}
           :reaction (fn [ed item]
-                      ;; TODO - Handle import !
-                      (let [token (lt.plugins.clojure/find-symbol-at-cursor ed)
-                            alias (last (s/split (:label item) "."))
-                            dep [(:label item) :as alias]]
-                        (nsl/replace-ns ed
-                                        (pprint-ns
-                                         (nsl/add-require
-                                          (:ns (nsl/get-ns-decl ed)) dep)))
-                        (editor/focus ed))))
+                      (case (:type item)
+                        :ns     (add-missing-require ed item)
+                        :class  (add-missing-import ed item)
+                        :type   (add-missing-type ed item)
+                        (console/error (str "Unsupported candidate: " item)))
+                      (notifos/set-msg! (str "Symbol: " (:label item) " added to namespace declaration"))
+                      (editor/focus ed)))
 
 
 (defn resolve-missing-op [sym]
@@ -210,18 +239,27 @@
        "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"resolve-missing\" :symbol \"" sym "\"}))"))
 
 
+(defn parse-missing [res]
+  (let [candidates (-> res :results first :result first :candidates)]
+    (when (string? candidates)
+      (->> candidates
+           (cljs.reader/read-string)
+           (map #(hash-map :label (first %) :type (second %)))
+           vec))))
+
+
+
+
 (behavior ::resolve-missing-res
           :triggers #{:editor.eval.clj.result.refactor.resolve-missing}
           :reaction (fn [ed res]
-                      (let [{:keys [candidates type]} (-> res :results first :result first)]
-                        (when (seq candidates)
-                          (let [items (map #(hash-map :type type :label %) (s/split candidates " "))]
-                            (if (= (count items) 1)
-                              (object/raise ed :resolve-missing.selected (first items))
-                              (sel/make {:ed ed
-                                         :behavior :resolve-missing.selected
-                                         :pos (editor/->cursor ed)
-                                         :items items})))))))
+                      (when-let [candidates (parse-missing res)]
+                        (if (= (count candidates) 1)
+                          (object/raise ed :resolve-missing.selected (first candidates))
+                          (sel/make {:ed ed
+                                     :behavior :resolve-missing.selected
+                                     :pos (editor/->cursor ed)
+                                     :items candidates})))))
 
 
 
@@ -238,5 +276,5 @@
               :desc "Clojure refactor: Resolve missing"
               :exec (fn []
                       (when-let [ed (pool/last-active)]
-                        (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
-                          (object/raise ed :refactor.resolve-missing! (:string token)))))})
+                        (when-let [t (get-symbol-token ed)]
+                          (object/raise ed :refactor.resolve-missing! (:symbol t)))))})

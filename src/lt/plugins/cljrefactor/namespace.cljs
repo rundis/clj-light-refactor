@@ -60,18 +60,43 @@
     (.clear bm)))
 
 
-;; TODO: Handle alternate require forms ?
-(defn add-require [ns-decl req]
-  (let [req-idx (first (keep-indexed #(when (= (keyword (first %2)) :require) %1) (drop 2 ns-decl)))
-        reqs (when req-idx (nth ns-decl (+ 2 req-idx)))]
-    (if reqs
-      (concat (take (+ 2 req-idx) ns-decl)
-              (list (concat reqs [req]))
-              (drop (+ 3 req-idx) ns-decl))
-      (concat (take 2 ns-decl)
-              (list [:require [req]])
-              (drop 2 ns-decl)))))
 
+
+(defn index-of-ns-type [ns-decl t]
+  (first (keep-indexed #(when (= (keyword (first %2)) t) %1) (drop 2 ns-decl))))
+
+(defn calc-imp-idx [ns-decl]
+  (let [req-idx (index-of-ns-type ns-decl :require)
+        imp-idx (index-of-ns-type ns-decl :import)]
+    (+ 2 (if imp-idx imp-idx (max 1 req-idx)))))
+
+
+(defn add-import [ns-decl imp]
+  (let [[pre post] (split-at (calc-imp-idx ns-decl) ns-decl)]
+    (cond
+     (and (seq post) (= (ffirst post) :import)) (concat pre
+                                                        (list (concat (first post) [imp]))
+                                                        (rest post))
+     (seq post) (concat pre
+                        (list (list :import imp))
+                        post)
+     :else (concat pre
+                   (list (list :import imp))))))
+
+
+(defn add-require [ns-decl req]
+  (let [req-idx (index-of-ns-type ns-decl :require)
+          [pre post] (split-at (if req-idx (+ req-idx 2) 2) ns-decl)]
+
+      (cond
+       (and (seq post) (= (ffirst post) :require)) (concat pre
+                                                           (list (concat (first post) [req]))
+                                                           (rest post))
+       (seq post) (concat pre
+                          (list (list :require req))
+                          post)
+       :else (concat pre
+                     (list (list :require req))))))
 
 
 
