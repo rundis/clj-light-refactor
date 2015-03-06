@@ -104,18 +104,33 @@ Tries to resolve the symbol at point and require or import the missing var.
 are prompted to select one
 * When added the ns form is also reformatted
 
-TIP: You can undo the effect of this command using cmd/ctrl+z
 
-Example:
+TIP: Also works for records and types. You can undo the effect of this command using cmd/ctrl+z. This command
+doesn't attempt to clean-up or be intelligent about duplicates etc. Thats handled by **Cleanup ns**
+
+.Example - require:
 [source,clojure]
 ----
-query ;; If you invoke the command with clojure.java.jdbc in your classpath
+;; With focus on this token, If you invoke the command with clojure.java.jdbc in your classpath
+sql/query
 
-;; adds the following to your namespace :require form
-[clojure.java.jdbc :as jdbc] ;; you'll then have to prefix your symbol manually e.g: jdbc/query
+;; The following is added to your namespace :require form
+[clojure.java.jdbc :as sql]
 ----
 
-**TODO: Support custom alias (j/query resulting in [clojure.java.jdbc :as j])**
+.Example - import:
+[source,clojure]
+----
+;; With focus on this token, If you invoke the command with clojure.java.jdbc in your classpath
+LinkedList
+
+;; The following is added to your namespace :import form
+(java.util.LinkedList)
+----
+
+
+
+
 
 
 == Credits
