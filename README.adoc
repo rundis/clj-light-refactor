@@ -81,8 +81,10 @@ Finds occurrences of symbols like defs and defns both where they are defined (if
 * Invoke the command: **Clojure refactor: Find usages**
 * If the editor isn't connected to a project, it will try to do so using Light Table std connect feature.
 * Search results are shown in a separate tab for "Find usages" (You can move this tab to a separate tabset, it will be reused for all find usages searches)
+* To move up/down the result list use the commands **Clojure refactor: Find usages - move next**/**Clojure refactor: Find usages - move previous**
+* To open the selected result item **Clojure refactor: Find usages - open selected** or click on the item
 
-NOTE: If there wasn't a connection for your project in the light table connect bar, you probably will have to reinvoke the command
+NOTE: If there wasn't a connection for your project in the light table connect bar, you might have to reinvoke the command
 
 
 === Cleanup ns

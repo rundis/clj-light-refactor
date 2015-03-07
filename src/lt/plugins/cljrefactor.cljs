@@ -10,6 +10,7 @@
             [clojure.string :as s]
             [lt.plugins.cljrefactor.artifact-version :as av-sel]
             [lt.plugins.cljrefactor.select :as sel]
+            [lt.plugins.cljrefactor.selector :as selector]
             [lt.plugins.cljrefactor.namespace :as nsl]
             [lt.plugins.cljrefactor.pprint :refer [pprint-ns]])
   (:require-macros [lt.macros :refer [defui behavior]]))
@@ -40,6 +41,7 @@
           :triggers #{:artifact-version.hints.update!}
           :debounce 100
           :reaction (fn [editor artifact]
+                      (println (artifact-version-list artifact))
                       (when-let [default-client (-> @editor :client :default)]
                         (notifos/set-msg! (str "Retrieving clojars artifact versions"))
                         (object/raise editor
@@ -57,10 +59,11 @@
 (behavior ::finish-artifact-version-hints
           :triggers #{:editor.eval.clj.result.refactor.artifact-versions}
           :reaction (fn [ed res]
+                      (println res)
                       (let [vs (-> res :results first :result first :value (s/split #" "))
                             hints (map #(do #js {:completion %}) vs)]
                         (if (> (count vs) 1)
-                          (sel/make {:ed ed
+                          (selector/make {:ed ed
                                      :behavior :artifact-version.selected
                                      :items vs
                                      :pos (editor/->cursor ed)})
@@ -70,19 +73,21 @@
 (defn artifact-list []
   (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
        "(def tr (refactor-nrepl.client/connect))"
-       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"artifact-list\"}))"))
+       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000) {:op \"artifact-list\"}))"))
 
 
 (behavior ::trigger-artifact-hints
           :triggers #{:artifact.hints.update!}
-          :debounce 100
+          :debounce 500
           :reaction (fn [editor res]
                       (when-let [default-client (-> @editor :client :default)]
-                        (notifos/set-msg! (str "Retrieving clojars artifacts"))
-                        (object/raise editor
-                                      :eval.custom
-                                      (artifact-list)
-                                      {:result-type :refactor.artifacts :verbatim true}))))
+                        (when-not (::fetching-deps @editor)
+                          (object/update! editor [::fetching-deps] (fn [_] true))
+                          (notifos/set-msg! (str "Retrieving clojars artifacts"))
+                          (object/raise editor
+                                        :eval.custom
+                                        (artifact-list)
+                                        {:result-type :refactor.artifacts :verbatim true})))))
 (defn sel-cb [ed fun c]
   (let [artifact (get (js->clj c) "completion")]
     (fun (str artifact " "))
@@ -97,12 +102,16 @@
                     :item %}])
         artifacts)))
 
+;; (doseq [obj (object/by-tag :editor.clj.project-file)]
+;;     (println "Found one")
+;;     (println (::dep-hints @obj)))
 
 (behavior ::finish-artifact-hints
           :triggers #{:editor.eval.clj.result.refactor.artifacts}
           :reaction (fn [editor res]
                       (let [artifacts (-> res :results first :result first :value (s/split #" "))
                             hints (create-artifact-hints editor artifacts)]
+                        (object/update! editor [::fetching-deps] (fn [_] false))
                         ;;(object/merge! editor {::hints hints})
                         (object/merge! editor {::dep-hints hints})
                         (object/raise auto-complete/hinter :refresh!))))
@@ -111,7 +120,7 @@
           :triggers #{:hints+}
           :reaction (fn [ed hints token]
                       (object/merge! ed {::token token})
-                      (when-not (::dep-hints @ed)
+                      (when-not (seq (::dep-hints @ed))
                         (object/raise ed :artifact.hints.update!))
                       (if-let [clj-hints (::dep-hints @ed)]
                         clj-hints
@@ -253,13 +262,14 @@
 (behavior ::resolve-missing-res
           :triggers #{:editor.eval.clj.result.refactor.resolve-missing}
           :reaction (fn [ed res]
-                      (when-let [candidates (parse-missing res)]
+                      (if-let [candidates (parse-missing res)]
                         (if (= (count candidates) 1)
                           (object/raise ed :resolve-missing.selected (first candidates))
-                          (sel/make {:ed ed
+                          (selector/make {:ed ed
                                      :behavior :resolve-missing.selected
                                      :pos (editor/->cursor ed)
-                                     :items candidates})))))
+                                     :items candidates}))
+                        (println "Couldn't find any suggestion for symbol"))))
 
 
 

@@ -128,7 +128,8 @@
           :reaction (fn [ed res]
                       (when-let [cleaned-ns (-> res :results first :result first :ns)]
                         (when (seq cleaned-ns)
-                          (replace-ns ed cleaned-ns)))))
+                          (replace-ns ed cleaned-ns)
+                          (notifos/set-msg! "Namespace cleaned !")))))
 
 
 (cmd/command {:command ::clean-ns

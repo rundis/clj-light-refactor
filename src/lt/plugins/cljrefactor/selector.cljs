@@ -1,20 +1,19 @@
-(ns lt.plugins.cljrefactor.select
+(ns lt.plugins.cljrefactor.selector
   (:require [lt.object :as object]
             [lt.objs.command :as cmd]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
             [lt.objs.files :as files]
             [lt.util.dom :as dom]
-            [clojure.string :as s]
-            [lt.util.js :refer [wait]])
+            [clojure.string :as s])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
 (defn remove-form [this]
-  ;(.clear (:mark @this))
-  (object/raise this :clear)
-  (object/destroy! this))
-
+  ;;"Hacky solution to try and address race conflict between keydown and blur"
+  (when-not (:deleted @this)
+    (object/merge! this {:deleted true})
+    (object/destroy! this)))
 
 (defui select-item [this idx item]
   [:option {:value idx
@@ -37,8 +36,8 @@
                                      item (nth (vec (:items @this)) idx)
                                      the-ed (:ed @this)
                                      beh (:behavior @this)]
-                                 (remove-form this)
-                                 (object/raise the-ed beh item)))
+                                 (object/raise the-ed beh item)
+                                 (remove-form this)))
 
      (= 27 kc) (do
                  (dom/stop-propagation ev)
@@ -47,32 +46,36 @@
                  (editor/focus ed)))))
 
 
-(object/object* ::refactor-select-form
+(object/object* ::refactor-selector-form
                 :triggers #{:click :clear!}
-                :tags #{:inline :inline.refactor.select.form}
+                :tags #{:inline :inline.refactor.selector.form}
                 :init (fn [this info]
                         (when-let [ed (editor/->cm-ed (:ed info))]
-                          (let [content (select-form this (:items info))
-                                line (-> info :pos :line)]
-                            (object/merge! this (assoc info
-                                                  :mark (editor/bookmark ed
-                                                                         {:line line :ch (-> info :pos :ch)}
-                                                                         {:widget content
-                                                                          :insertLeft false})))
+                          (object/merge! this info)
+                          (let [content (select-form this (:items info))]
                             (dom/on (dom/$ :select content) "blur"
-                                    (fn [ev]
-                                      (.clear (:mark @this))
-                                      ;; Hack! Croaks with an exception, probably due to some asynchronous timing fun
-                                      (wait 0 (fn []
-                                                (remove-form this)))))
+                                    (fn []
+                                      ;(println "Remove from blur")
+                                      (remove-form this)))
 
                             (dom/on content "keydown" (partial on-keydown this ed))
-
                             (dom/val (dom/$ :option content) 0)
+
+                            (js/CodeMirror.positionHint ed content (:line (:pos info)))
                             (dom/focus (dom/$ :select content))
                             content))))
 
 (defn make [info]
-  ;; TODO: Have to figure out how to position select absolute, and still display on top of existing text
-  (object/create ::refactor-select-form info))
+  (object/create ::refactor-selector-form info))
+
+
+
+
+;;   (doseq [obj (object/by-tag :refactor.usages)]
+;;     (println "Found one")
+;;     (println (object/->id obj))
+;;     ;(object/destroy! obj)
+;;     )
+
+
 

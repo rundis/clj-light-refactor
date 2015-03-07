@@ -23,4 +23,7 @@
 
  [:refactor.usages :lt.plugins.cljrefactor.usages/on-close]
  [:refactor.usages :lt.plugins.cljrefactor.usages/find-symbol.start]
+ [:refactor.usages :lt.plugins.cljrefactor.usages/move-next]
+ [:refactor.usages :lt.plugins.cljrefactor.usages/move-prev]
+ [:refactor.usages :lt.plugins.cljrefactor.usages/open-active]
  [:refactor.usages :lt.plugins.cljrefactor.usages/clear!]]

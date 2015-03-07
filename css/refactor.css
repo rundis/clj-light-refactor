@@ -1,4 +1,5 @@
 
+/* Selector */
 div.refactor-select {
   position: relative;
   display: inline-block;
@@ -21,3 +22,7 @@ div.refactor-select select {
   max-height: 20em;
 }
 
+
+/* result listing */
+.search-results .entry.active {background: #404040;}
+.search-results .entry.active .line {background: #999;color: #3b3f41;}
