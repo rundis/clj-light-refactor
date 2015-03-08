@@ -9,8 +9,15 @@ v0.1.1, 2015-02-15: Draft release
 toc::[]
 
 == Introduction
+Refactoring support in your editor might make you lazy, your typing skills might deteriorate as well. But still if it makes
+you more productive and/or lets you spend more focus at the task at hand maybe its worth it.
+
+The goal of this plugin is provide Clojure (and hopefully ClojureScript) refactoring support in Light Table.
 
 
+
+== Resources
+* http://rundis.github.io/blog/2015/clj_light_refactor.html[Clojure Refactoring in Light Table] - Blogcast showcasing some of the features coming to a plugin manager near you
 
 == Usage
 
@@ -34,8 +41,6 @@ Add the following, either in your project's __project.clj__, or in the :user pro
 
 ==== Limitations
 * Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
-* clean-ns doesn't handle/analyze require import and refer (:refer, :import :refer does). This is a
-downstream https://github.com/clojure-emacs/refactor-nrepl/issues/32[issue] with refactor-nrepl
 
 
 === Introduce ns
