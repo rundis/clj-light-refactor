@@ -15,6 +15,13 @@ you more productive and/or lets you spend more focus at the task at hand maybe i
 The goal of this plugin is provide Clojure (and hopefully ClojureScript) refactoring support in Light Table.
 
 
+== Installation
+NOTE: **This plugin is not released yet.** If you want try it out you can clone it to the plugins
+folder for LightTable (check the https://github.com/LightTable/LightTable/wiki/User-Intro#user-settings[LT docs] for  where)
+However you are on your own, you should know what you are doing! Also you might have to compile the plugin and/or reload it's behaviors.
+Things are still changing in the downstreams dependencies, which may from time to time lead to breakage.
+
+
 
 == Resources
 * http://rundis.github.io/blog/2015/clj_light_refactor.html[Clojure Refactoring in Light Table] - Blogcast showcasing some of the features coming to a plugin manager near you
