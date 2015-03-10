@@ -37,12 +37,12 @@
 
 (defui result-entry [this entry]
   [:p {:class (.concat "entry" (if (:active entry) " active" ""))}
-   [:span.line (first (:loc entry))]
+   [:span.line (:line-beg entry)]
    [:pre (crate/raw
-          (highlight (:stmt entry) (-> @this :search-for :symbol)))]]
+          (highlight (:match entry) (-> @this :search-for :symbol)))]]
   :click (fn []
            (cmd/exec! :open-path (:file entry))
-           (cmd/exec! :goto-line (first (:loc entry)))))
+           (cmd/exec! :goto-line (:line-beg entry))))
 
 (defui result-item [this item]
   (let [file (:file item)]
@@ -60,17 +60,11 @@
         results-ul (dom/$ :ul.res container)]
     (dom/replace-with results-ul (search-results this res))))
 
-
-
-
 (defn usages->items [usages]
   (vec (->> usages
             (filter :occurrence)
             (map (fn [{x :occurrence}]
-                   {:loc (take 4 x)
-                    :symbol (nth x 4)
-                    :file (nth x 5)
-                    :stmt (last x)})))))
+                   (apply hash-map (cljs.reader/read-string x)))))))
 
 (defn items->view [items]
   (->> items
@@ -91,7 +85,7 @@
                          (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
          " (def tr (refactor-nrepl.client/connect))"
          " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
-         " {:op \"refactor\" :refactor-fn \"find-symbol\" :ns z-ns :name \"" symbol \""}))")))
+         " {:op \"find-symbol\" :ns z-ns :name \"" symbol \""}))")))
 
 
 (behavior ::find-symbol.res

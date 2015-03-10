@@ -41,7 +41,6 @@
           :triggers #{:artifact-version.hints.update!}
           :debounce 100
           :reaction (fn [editor artifact]
-                      (println (artifact-version-list artifact))
                       (when-let [default-client (-> @editor :client :default)]
                         (notifos/set-msg! (str "Retrieving clojars artifact versions"))
                         (object/raise editor
@@ -59,8 +58,7 @@
 (behavior ::finish-artifact-version-hints
           :triggers #{:editor.eval.clj.result.refactor.artifact-versions}
           :reaction (fn [ed res]
-                      (println res)
-                      (let [vs (-> res :results first :result first :value (s/split #" "))
+                      (let [vs (-> res :results first :result first :versions first)
                             hints (map #(do #js {:completion %}) vs)]
                         (if (> (count vs) 1)
                           (selector/make {:ed ed
@@ -109,7 +107,8 @@
 (behavior ::finish-artifact-hints
           :triggers #{:editor.eval.clj.result.refactor.artifacts}
           :reaction (fn [editor res]
-                      (let [artifacts (-> res :results first :result first :value (s/split #" "))
+                      (println res)
+                      (let [artifacts (-> res :results first :result first :artifacts)
                             hints (create-artifact-hints editor artifacts)]
                         (object/update! editor [::fetching-deps] (fn [_] false))
                         ;;(object/merge! editor {::hints hints})
@@ -288,3 +287,4 @@
                       (when-let [ed (pool/last-active)]
                         (when-let [t (get-symbol-token ed)]
                           (object/raise ed :refactor.resolve-missing! (:symbol t)))))})
+
