@@ -6,10 +6,12 @@
             [lt.objs.files :as files]
             [lt.objs.tabs :as tabs]
             [lt.util.dom :as dom]
+            [lt.objs.console :as console]
             [lt.objs.notifos :as notifos]
             [crate.binding :refer [bound]]
             [crate.core :as crate]
-            [clojure.string :as s])
+            [clojure.string :as s]
+            [lt.plugins.cljrefactor.input-prompt :as prompt])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
@@ -76,7 +78,7 @@
                     :items res})) (keys x))))))
 
 
-(defn find-symbol-op [ed symbol]
+(defn find-symbol-op [ed sym]
   (let [filename (-> @ed :info :path)
         ns (-> @ed :info :ns)]
     (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
@@ -85,20 +87,49 @@
                          (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
          " (def tr (refactor-nrepl.client/connect))"
          " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
-         " {:op \"find-symbol\" :ns z-ns :name \"" symbol \""}))")))
+         " {:op \"find-symbol\" :ns z-ns :name \"" sym \""}))")))
+
+
+;; TODO:  SHOULDN'T USE THIS.
+;; Should call find-symbol and then do replace client side to handle
+;; - open editors (reload)
+;; - multiple replace of a symbol on the same line
+;; - etc
+
+(defn rename-symbol-op [ed sym new-sym]
+  (let [filename (-> @ed :info :path)
+        ns (-> @ed :info :ns)]
+    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
+         " (def z-ns " (if ns
+                         (str "'" ns)
+                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
+         " (def tr (refactor-nrepl.client/connect))"
+         " (refactor-nrepl.client/rename-symbol"
+         "   :transport tr :ns z-ns :name \"" sym \"" :new-name \"" new-sym \""))")))
+
+
+(doseq [open-ed (object/by-tag :editor.clj)]
+  (println (-> @open-ed :info :path)))
 
 
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}
           :reaction (fn [ed res]
-                      (let [usages (-> res :results first :result)
-                            items (usages->items usages)]
+                      (println res)
+                      (let [resp (-> res :results first :result)
+                            items (usages->items resp)
+                            status (first (filter :status resp))]
                         (if (seq items)
                           (object/merge! refactor-usages {:items (assoc-in items [0 :active] true)})
                           (object/merge! refactor-usages {:items nil}))
                         (show-results refactor-usages (items->view (:items @refactor-usages)))
                         (object/update! refactor-usages [:search-for :namespace] (fn [_]
                                                                                    (-> @ed :info :ns)))
+                        (when-let [err (:error status)]
+                          (object/raise ed :editor.exception
+                                        (str "Error when executing find usages:\n " err)
+                                        {:line (-> res :results first :meta :line)}))
+
                         (notifos/done-working "Find usages completed"))))
 
 (defn- ->idx-active [items]
@@ -142,8 +173,7 @@
 (behavior ::find-symbol.start
           :triggers #{:refactor.find-symbol}
           :reaction (fn [this ed token]
-                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
-                            op (find-symbol-op ed (:string token))]
+                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))]
                         (tabs/add-or-focus! refactor-usages)
                         (object/raise this :clear!)
                         (object/update! this [:search-for] (fn [_]
@@ -159,6 +189,60 @@
 (defn search-for [this]
   (list "Find usages for: " [:span (when-let [info (:search-for this)]
                                      (str (:namespace info) "/" (:symbol info)))]))
+
+;; TODO: Need to reimplement this to do the replace client side.
+(behavior ::rename-symbol.res
+          :triggers #{:editor.eval.clj.result.refactor.rename-symbol}
+          :reaction (fn [ed res]
+                      (let [resp (-> res :results first :result)
+                            status (first (filter :status resp))
+                            line (-> res :results first :meta :line)]
+                        (if-let [err (:error status)]
+                          (object/raise ed :editor.exception
+                                        (str "Error when executing renaming symbol:\n " err)
+                                        {:line line})
+                          (if-not (seq resp)
+                            (object/raise ed :editor.exception
+                                          (str "Error when executing renaming symbol:\n "
+                                               " No results from middleware, probably because of errors in a candidate ns, try running find usages to see which ns has errors")
+                                          {:line line})
+                            (object/raise ed :editor.result
+                                          (str "Probably renamed ok, but you may need to reload open editors...")
+                                          {:line line}))))
+
+
+                      (println res)
+                      (notifos/done-working "Rename completed")))
+
+
+
+;; TODO: Need to reimplement this to do the replace client side.
+(behavior ::rename-symbol.start
+          :triggers #{:refactor.rename-symbol}
+          :reaction (fn [ed old new]
+                      (if (seq (s/trim new))
+                        (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
+                              sym (:string token)]
+                          (notifos/set-msg! (str "Replacing: " ns "/" old " with " ns "/" new))
+                          (object/raise ed
+                                        :eval.custom
+                                        (rename-symbol-op ed old new)
+                                        {:result-type :refactor.rename-symbol :verbatim true}))
+                        (console/log "Can't rename to empty !"))))
+
+(behavior ::rename-symbol.prompt
+          :triggers #{:refactor.rename-symbol.prompt}
+          :reaction (fn [ed token]
+                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
+                            sym (:string token)]
+                        (prompt/make {:ed ed
+                                      :behavior :refactor.rename-symbol
+                                      :init-value sym
+                                      :pos (editor/->cursor ed)}))))
+
+
+
+
 
 (object/object* ::refactor-usages
                 :tags #{:refactor.usages}
@@ -199,3 +283,11 @@
                       (when-let [ed (pool/last-active)]
                         (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
                           (object/raise refactor-usages :refactor.find-symbol ed token))))})
+
+(cmd/command {:command ::replace-symbol
+              :desc "Clojure refactor: Rename symbol"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (when-let [token (lt.plugins.clojure/find-symbol-at-cursor ed)]
+                          (object/raise ed :refactor.rename-symbol.prompt token))))})
+

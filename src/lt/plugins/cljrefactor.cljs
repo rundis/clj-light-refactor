@@ -9,7 +9,6 @@
             [lt.plugins.auto-complete :as auto-complete]
             [clojure.string :as s]
             [lt.plugins.cljrefactor.artifact-version :as av-sel]
-            [lt.plugins.cljrefactor.select :as sel]
             [lt.plugins.cljrefactor.selector :as selector]
             [lt.plugins.cljrefactor.namespace :as nsl]
             [lt.plugins.cljrefactor.pprint :refer [pprint-ns]])
@@ -81,7 +80,7 @@
                       (when-let [default-client (-> @editor :client :default)]
                         (when-not (::fetching-deps @editor)
                           (object/update! editor [::fetching-deps] (fn [_] true))
-                          (notifos/set-msg! (str "Retrieving clojars artifacts"))
+                          (notifos/set-msg! "Retrieving clojars artifacts")
                           (object/raise editor
                                         :eval.custom
                                         (artifact-list)

@@ -26,3 +26,7 @@ div.refactor-select select {
 /* result listing */
 .search-results .entry.active {background: #404040;}
 .search-results .entry.active .line {background: #999;color: #3b3f41;}
+
+
+/* prompt form */
+.CodeMirror-hints.refactor-prompt input { display:inline; }

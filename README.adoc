@@ -99,6 +99,22 @@ Finds occurrences of symbols like defs and defns both where they are defined (if
 NOTE: If there wasn't a connection for your project in the light table connect bar, you might have to reinvoke the command
 
 
+=== Rename symbol (Incubating)
+Application of find usages that renames a symbol
+
+.Usage:
+* Move your cursor to an applicable symbol
+* Invoke the command: **Clojure refactor: Rename symbol**
+* You are prompted to enter a new name
+* Enter new name and press enter
+* If the editor isn't connected to a project, it will try to do so using Light Table std connect feature.
+* If all goes well the symbol is renamed :)
+
+
+WARNING: This feature is currently only a proof of concept and will be reimplemented. It doesn't handle
+rename of a symbol occuring multiple times on the same line, doesn't gracefully handle rename in open editors etc.
+
+
 === Cleanup ns
 Will clean up your namespace definition (removing unused, sort etc). See https://github.com/clojure-emacs/refactor-nrepl#clean-ns[here] for details
 
