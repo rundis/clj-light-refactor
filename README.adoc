@@ -111,8 +111,8 @@ Application of find usages that renames a symbol
 * If all goes well the symbol is renamed :)
 
 
-WARNING: This feature is currently only a proof of concept and will be reimplemented. It doesn't handle
-rename of a symbol occuring multiple times on the same line, doesn't gracefully handle rename in open editors etc.
+WARNING: This feature is currently somewhat incomplete. After a rename it doesn't currently reload
+namespaces as necessary. (Eval'ing the newly renamed symbol should get you back on track though)
 
 
 === Cleanup ns
