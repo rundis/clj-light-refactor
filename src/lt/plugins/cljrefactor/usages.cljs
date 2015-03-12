@@ -6,6 +6,7 @@
             [lt.objs.files :as files]
             [lt.objs.tabs :as tabs]
             [lt.util.dom :as dom]
+            [lt.objs.document :as doc]
             [lt.objs.console :as console]
             [lt.objs.notifos :as notifos]
             [crate.binding :refer [bound]]
@@ -28,13 +29,10 @@
           :reaction (fn [this]
                       (dom/empty (dom/$ :ul.res (object/->content this)))))
 
-
-
 (defn- highlight [line sym]
   (-> line
       (s/replace sym (str "<em>" sym "</em>"))
       (.substring 0 150)))
-
 
 
 (defui result-entry [this entry]
@@ -89,33 +87,9 @@
          " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
          " {:op \"find-symbol\" :ns z-ns :name \"" sym \""}))")))
 
-
-;; TODO:  SHOULDN'T USE THIS.
-;; Should call find-symbol and then do replace client side to handle
-;; - open editors (reload)
-;; - multiple replace of a symbol on the same line
-;; - etc
-
-(defn rename-symbol-op [ed sym new-sym]
-  (let [filename (-> @ed :info :path)
-        ns (-> @ed :info :ns)]
-    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
-         " (def z-ns " (if ns
-                         (str "'" ns)
-                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
-         " (def tr (refactor-nrepl.client/connect))"
-         " (refactor-nrepl.client/rename-symbol"
-         "   :transport tr :ns z-ns :name \"" sym \"" :new-name \"" new-sym \""))")))
-
-
-(doseq [open-ed (object/by-tag :editor.clj)]
-  (println (-> @open-ed :info :path)))
-
-
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}
           :reaction (fn [ed res]
-                      (println res)
                       (let [resp (-> res :results first :result)
                             items (usages->items resp)
                             status (first (filter :status resp))]
@@ -134,7 +108,6 @@
 
 (defn- ->idx-active [items]
   (first (keep-indexed #(when (:active %2) %1) items)))
-
 
 
 (behavior ::open-active
@@ -182,7 +155,7 @@
                         (object/raise ed
                                       :eval.custom
                                       (find-symbol-op ed (:string token))
-                                      {:result-type :refactor.find-symbol :verbatim true}))))
+                                      {:result-type :refactor.find-symbol :verbatim true :symbol (:string token)}))))
 
 
 
@@ -190,45 +163,93 @@
   (list "Find usages for: " [:span (when-let [info (:search-for this)]
                                      (str (:namespace info) "/" (:symbol info)))]))
 
+
+;; all replacements for a file
+(defn replace-in-hidden-ed! [file selections new]
+  (let [content (-> file (files/open-sync) :content)
+        ed (pool/create {:mime "text/x-clojure" :content content})
+        cm-ed (editor/->cm-ed ed)]
+
+    (.setSelections cm-ed (clj->js selections))
+    (.replaceSelections cm-ed (clj->js (repeat (count selections) new)))
+    (doc/save file (editor/->val ed))
+    (object/destroy! ed)))
+
+(defn replace-in-open-ed! [ed selections new]
+  (let [cm-ed (editor/->cm-ed ed)]
+    (.setSelections cm-ed (clj->js selections))
+    (.replaceSelections cm-ed (clj->js (repeat (count selections) new)))
+    (object/raise ed :save)))
+
+
+(defn create-replace-selections [fileItems old]
+  (let [origin? (fn [item] (> (:line-end item) (:line-beg item))) ;; We get the whole form for the actual symbol
+        calc-col-start (fn [item]
+                         (if (origin? item)
+                           (.indexOf (:match item) old)
+                           (- (:col-end item) 2 (count old))))
+        calc-col-end (fn [item]
+                       (if (origin? item)
+                         (+ (.indexOf (:match item) old) (count old))
+                         (- (:col-end item) 2)))]
+    (vec (map (fn [item]
+                {:anchor {:line (dec (:line-beg item)) :ch (calc-col-start item)}
+                 :head {:line (dec (:line-beg item)) :ch (calc-col-end item)}})
+              (:items fileItems)))))
+
+(defn replace-in-editors! [itemsByFile {:keys [old new]}]
+  (let [open-eds (object/by-tag :editor.clj)
+        open-ed? (fn [file]
+                   (some #(if (= (-> @% :info :path) file) % nil) open-eds))]
+    (doseq [fileItems itemsByFile]
+      (if-let [open-ed (open-ed? (:file fileItems))]
+        (replace-in-open-ed! open-ed (create-replace-selections fileItems old) new)
+        (replace-in-hidden-ed! (:file fileItems)
+                               (create-replace-selections fileItems old)
+                               new)))))
+
 ;; TODO: Need to reimplement this to do the replace client side.
 (behavior ::rename-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.rename-symbol}
           :reaction (fn [ed res]
                       (let [resp (-> res :results first :result)
                             status (first (filter :status resp))
-                            line (-> res :results first :meta :line)]
+                            info (-> res :meta)
+                            pos (:pos info)]
                         (if-let [err (:error status)]
                           (object/raise ed :editor.exception
                                         (str "Error when executing renaming symbol:\n " err)
-                                        {:line line})
+                                        {:line pos})
                           (if-not (seq resp)
                             (object/raise ed :editor.exception
                                           (str "Error when executing renaming symbol:\n "
                                                " No results from middleware, probably because of errors in a candidate ns, try running find usages to see which ns has errors")
-                                          {:line line})
-                            (object/raise ed :editor.result
-                                          (str "Probably renamed ok, but you may need to reload open editors...")
-                                          {:line line}))))
-
-
-                      (println res)
+                                          {:line pos})
+                            (let [itemsByFile (items->view (usages->items resp))]
+                              (replace-in-editors! itemsByFile info)
+                              (editor/focus ed)
+                              (editor/move-cursor ed pos)
+                              (object/raise ed :editor.result "Renamed ok !" pos)))))
                       (notifos/done-working "Rename completed")))
 
-
-
-;; TODO: Need to reimplement this to do the replace client side.
 (behavior ::rename-symbol.start
           :triggers #{:refactor.rename-symbol}
           :reaction (fn [ed old new]
                       (if (seq (s/trim new))
                         (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
-                              sym (:string token)]
+                              pos (editor/->cursor ed)]
                           (notifos/set-msg! (str "Replacing: " ns "/" old " with " ns "/" new))
                           (object/raise ed
                                         :eval.custom
-                                        (rename-symbol-op ed old new)
-                                        {:result-type :refactor.rename-symbol :verbatim true}))
-                        (console/log "Can't rename to empty !"))))
+                                        (find-symbol-op ed old)
+                                        {:result-type :refactor.rename-symbol
+                                         :verbatim true
+                                         :old old
+                                         :new new
+                                         :pos pos}))
+                        (do
+                          (console/log "Can't rename to empty !")
+                          (editor/focus ed)))))
 
 (behavior ::rename-symbol.prompt
           :triggers #{:refactor.rename-symbol.prompt}
@@ -239,10 +260,6 @@
                                       :behavior :refactor.rename-symbol
                                       :init-value sym
                                       :pos (editor/->cursor ed)}))))
-
-
-
-
 
 (object/object* ::refactor-usages
                 :tags #{:refactor.usages}
