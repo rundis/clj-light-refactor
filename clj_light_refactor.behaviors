@@ -1,6 +1,23 @@
 [[:app :lt.objs.plugins/load-js ["clj-light-refactor_compiled.js"]]
  [:app :lt.objs.plugins/load-css "css/refactor.css"]
 
+
+ ;; Middleware independent refactorings
+ [:editor.clj :lt.plugins.cljrefactor.threading/thread-fully!]
+ [:editor.clj :lt.plugins.cljrefactor.threading/thread-one!]
+ [:editor.clj :lt.plugins.cljrefactor.threading/thread-first-fully!]
+ [:editor.clj :lt.plugins.cljrefactor.threading/thread-last-fully!]
+ [:editor.clj :lt.plugins.cljrefactor.threading/unwind-fully!]
+ [:editor.clj :lt.plugins.cljrefactor.threading/unwind-one!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/thread-fully!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/thread-one!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/thread-first-fully!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/thread-last-fully!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-fully!]
+ [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-one!]
+
+
+
  [:editor.clj :lt.plugins.cljrefactor/ensure-connected]
  [:editor.clj :lt.plugins.cljrefactor/clj-refactor.maybe-project]
  [:editor.clj :lt.plugins.cljrefactor.usages/find-symbol.res]

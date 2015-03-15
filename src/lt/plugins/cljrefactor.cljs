@@ -11,7 +11,8 @@
             [lt.plugins.cljrefactor.artifact-version :as av-sel]
             [lt.plugins.cljrefactor.selector :as selector]
             [lt.plugins.cljrefactor.namespace :as nsl]
-            [lt.plugins.cljrefactor.pprint :refer [pprint-ns]])
+            [lt.plugins.cljrefactor.pprint :refer [pprint-ns]]
+            [lt.plugins.cljrefactor.refactor :as refactor])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
@@ -286,4 +287,5 @@
                       (when-let [ed (pool/last-active)]
                         (when-let [t (get-symbol-token ed)]
                           (object/raise ed :refactor.resolve-missing! (:symbol t)))))})
+
 

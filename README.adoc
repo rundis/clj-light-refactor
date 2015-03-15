@@ -48,6 +48,68 @@ Add the following, either in your project's __project.clj__, or in the :user pro
 
 ==== Limitations
 * Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
+* Some refactorings currently uses **cljs.reader/read-string** to "parse" code. That reader only
+supports a subset of clojure's syntax (no-ops and/or exceptions may happen when using reader macros like ', #, @ etc)
+
+
+
+=== Threading
+These refactorings work without the nRepl middleware, and should work both for clojure and clojurescript
+editors.
+
+[cols="2*", options="header"]
+|===
+|Command
+|Description
+
+|Thread fully
+|Converts a nested expression to a threaded one (_given that you have provided a recognized threading operator_)
+
+|Unwind fully
+|Unwinds a threaded exception (including the threading macro)
+
+|Thread one
+|Threads a nested expression one level down.
+
+|Unwind one
+|Unwinds a threaded expression one level up
+
+|Thread first fully
+|Like thread fully. You don't need to provide the threading operator as a wrapped form before invoking, the form is automatically wrapped with a thread-first macro
+
+|Thread last fully
+|Like thread first fully, but with the thread-last macro
+
+|===
+
+
+NOTE: No formatting currenly. Anonymous function literal blocks are wrapped in strings to allow parsing. So threading within a function literal block is a no go.
+Recognized threading macros currently includes : ->, ->>, some-> and some->>
+
+
+[source, clojure]
+----
+;; place the cursor somewhere within the outer form and invoke Thread fully
+(-> (assoc (assoc {:a 1} :b 2) :c 3))
+;; You'll get
+(-> {:a 1} (assoc :b 2) (assoc :c 3))
+
+;; If only one arg (i.e function) parens are removed, so thread first fully on the following:
+(:c (:b (:a {:a {:b {:c 1}}})))
+; yields
+(-> {:a {:b {:c 1}}} :a :b :c)
+
+
+;; Some handling of anonymous functions are handled ok, like
+(->> (map #(+ % 1) (filter even? [1 2 3 4 5])))
+; yields
+(->> [1 2 3 4 5] (filter even?) (map #(+ % 1) ))
+
+----
+
+
+
+
 
 
 === Introduce ns
