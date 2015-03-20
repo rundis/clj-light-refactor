@@ -109,6 +109,18 @@ Recognized threading macros currently includes : ->, ->>, some-> and some->>
 
 
 
+=== Show definition
+Shows definition for a symbol inline. Handy when you just want to have a quick peak
+at the definiton of symbol without leaving the context of the editor (and position) you are currently are in.
+Think of it like an extended version of the existing LT inline doc function.
+Works for both Clojure and ClojureScript.
+
+.Usage
+* Position cursor at symbol (typically a function call or referenced var)
+* Select command **Clojure refactor: Show definition**
+* If found the function/var is displayed inline
+
+image::find_def.png
 
 
 

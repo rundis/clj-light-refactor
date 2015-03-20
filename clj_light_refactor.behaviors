@@ -16,6 +16,13 @@
  [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-fully!]
  [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-one!]
 
+ [:editor.clj :lt.plugins.cljrefactor.definition/start-show-definition]
+ [:editor.clj :lt.plugins.cljrefactor.definition/show-definition-at-cursor]
+ [:editor.clj :lt.plugins.cljrefactor.definition/finish-show-definition]
+
+ [:editor.cljs :lt.plugins.cljrefactor.definition/start-show-definition]
+ [:editor.cljs :lt.plugins.cljrefactor.definition/show-definition-at-cursor]
+ [:editor.cljs :lt.plugins.cljrefactor.definition/finish-show-definition]
 
 
  [:editor.clj :lt.plugins.cljrefactor/ensure-connected]

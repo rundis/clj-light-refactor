@@ -14,9 +14,10 @@
 (defn str->seq-zip [form-str]
   (when (seq form-str)
     (-> form-str
-        (s/replace #"(#\(.*\)[^\)])" "\"___$1___\" ")
+        (s/replace #"(#\(.*\)[^\)])" "\"___$1___\" ") ;; well this won't do, croaks if last arg in form
         rdr/read-string
         z/seq-zip)))
+
 
 (defn zip->str [zipnode]
   (-> zipnode
@@ -254,7 +255,6 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.unwind-one!)))})
-
 
 
 
