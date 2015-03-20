@@ -120,7 +120,7 @@ Works for both Clojure and ClojureScript.
 * Select command **Clojure refactor: Show definition**
 * If found the function/var is displayed inline
 
-image::find_def.png
+image::find_def.png[]
 
 
 
