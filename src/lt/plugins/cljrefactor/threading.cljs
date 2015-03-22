@@ -5,29 +5,11 @@
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
-            [lt.objs.command :as cmd])
+            [lt.objs.command :as cmd]
+            [lt.plugins.cljrefactor.parser :as p])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
-
-
-;; TODO: read-string doesn't handle nearly all of clojure !
-(defn str->seq-zip [form-str]
-  (rdr/register-tag-parser! "afn" (fn [x] (str "___#" x "___"))) ;; hack to escape anonymous functions
-  (let [res (when (seq form-str)
-              (-> form-str
-                  (s/replace #"#\(" "#afn(")
-                  rdr/read-string
-                  z/seq-zip))]
-    (rdr/deregister-tag-parser! "afn")
-    res))
-
-
-(defn zip->str [zipnode]
-  (-> zipnode
-      z/root
-      pr-str
-      (s/replace #"\"___|___\"" "")))
 
 (defn top [zipnode]
   (loop [n zipnode]
@@ -94,33 +76,33 @@
 
 
 (defn thread-first [form-str]
-  (when-let [node (str->seq-zip form-str)]
+  (when-let [node (p/str->seq-zip form-str)]
     (-> node
         (do-thread (threading-locator "->") "->")
-        zip->str)))
+        p/zip->str)))
 
 (defn thread-last [form-str]
-  (when-let [node (str->seq-zip form-str)]
+  (when-let [node (p/str->seq-zip form-str)]
     (-> node
         (do-thread (threading-locator "->>") "->>")
-        zip->str)))
+        p/zip->str)))
 
 
 (defn thread [form-str]
-  (let [node (str->seq-zip form-str)
+  (let [node (p/str->seq-zip form-str)
         threading (when node (threaded? node))]
     (when (and node threading)
       (-> node
           (do-thread (threading-locator threading) threading)
-          zip->str))))
+          p/zip->str))))
 
 (defn thread-one [form-str]
-  (let [node (str->seq-zip form-str)
+  (let [node (p/str->seq-zip form-str)
         threading (when node (threaded? node))]
     (when (and node threading)
       (-> node
           (do-thread-one (threading-locator threading))
-          zip->str))))
+          p/zip->str))))
 
 (defn unwrap-threading [zipnode]
   (-> zipnode  z/down z/right z/node z/seq-zip))
@@ -159,24 +141,24 @@
       (recur (do-unwind-one cand unwind-fn)))))
 
 (defn unwind [form-str]
- (let [node (str->seq-zip form-str)
+ (let [node (p/str->seq-zip form-str)
        threading (when node (threaded? node))]
    (when (and node threading)
      (-> node
          (do-unwind (unwind-op threading))
          (unwrap-threading)
-         zip->str))))
+         p/zip->str))))
 
 
 (defn unwind-one [form-str]
-  (let [node (str->seq-zip form-str)
+  (let [node (p/str->seq-zip form-str)
         threading (when node (threaded? node))]
 
     (when (and node threading)
       (-> node
           (do-unwind-one (unwind-op threading))
           maybe-unwrap-threading
-          zip->str))))
+          p/zip->str))))
 
 
 
