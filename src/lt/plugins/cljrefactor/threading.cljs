@@ -10,13 +10,17 @@
 
 
 
+
 ;; TODO: read-string doesn't handle nearly all of clojure !
 (defn str->seq-zip [form-str]
-  (when (seq form-str)
-    (-> form-str
-        (s/replace #"(#\(.*\)[^\)])" "\"___$1___\" ") ;; well this won't do, croaks if last arg in form
-        rdr/read-string
-        z/seq-zip)))
+  (rdr/register-tag-parser! "afn" (fn [x] (str "___#" x "___"))) ;; hack to escape anonymous functions
+  (let [res (when (seq form-str)
+              (-> form-str
+                  (s/replace #"#\(" "#afn(")
+                  rdr/read-string
+                  z/seq-zip))]
+    (rdr/deregister-tag-parser! "afn")
+    res))
 
 
 (defn zip->str [zipnode]
@@ -255,7 +259,6 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.unwind-one!)))})
-
 
 
 (comment
