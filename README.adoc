@@ -233,12 +233,52 @@ LinkedList
 ----
 
 
+== Bonus
+With the https://github.com/clojure-emacs/cider-nrepl[cider-nrepl] dependency a couple of
+pretty neat features can be exposed. Some of the features have little/nothing to do with refactoring.
+Rather rolling separate plugins or submitting pull requests to the LT Clojure plugin, I'm adding
+them here for convenience.
 
+=== A better autocomplete ?
+The current LT autocompleter for Clojure uses https://github.com/ninjudd/clojure-complete[clojure-complete].
+It's pretty old and not under active development. There is an https://github.com/LightTable/Clojure/issues/25[issue]
+in the Clojure plugin to improve autocompletion. One of the suggestions is to use https://github.com/alexander-yakushev/compliment[compliment].
+Well cider-nrepl provides support for autocompletion using compliment, so I decided to add a proof of concept
+implementation to this plugin. Hopefully to migrate to the Clojure plugin soon after LT 0.8 is released.
+
+
+image::completer.png[]
+
+
+.Usage
+* The autocompleter only kicks in when the editor is connected to a nrepl, evaluate the editor (or any form) or
+use the command **Clojure refactor: Ensure editor connected**
+* You should now get completion suggestions similar to what's described by https://github.com/alexander-yakushev/compliment/wiki/Examples[compliment examples]
+, but with the std. LT completer (and without the docs part)
+
+It only works for clojure (not ClojureScript currently).
+
+WARNING: I'm having a really hard time getting to grips with the inner workings of the autocompleter plugin in
+LT. So there will be cases it behaves weirdly (: It's not optimized for performance either.
+Textual autocompletion is turned of and so is the default autocompleter (for clojure) that ships with LT.
+
+.To turn it off (and optionally turn on text hints) just edit your __User behaviors__
+[source,clojure]
+----
+ [:editor.clj :lt.plugins.clojure/use-local-hints] ; Turn on clojure plugin hints again
+ [:editor.clj :lt.plugins.auto-complete/textual-hints] ; Enable textual hings again
+ [:editor.clj :-lt.plugins.cljrefactor.completer/use-local-hints] ; Turn off clj-refactor autocompletion
+----
+
+
+=== Test support
+WORK IN PROGRESS
 
 
 
 == Credits
 * https://github.com/clojure-emacs/refactor-nrepl[refactor-nrepl] - nREPL middleware to support refactorings in an editor agnostic way.
+* https://github.com/clojure-emacs/cider-nrepl[cider-nrepl] - A collection of nREPL middleware designed to enhance https://github.com/clojure-emacs/cider[CiDER].
 
 == Contributing
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
