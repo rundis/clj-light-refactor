@@ -236,8 +236,8 @@ LinkedList
 == Bonus
 With the https://github.com/clojure-emacs/cider-nrepl[cider-nrepl] dependency a couple of
 pretty neat features can be exposed. Some of the features have little/nothing to do with refactoring.
-Rather rolling separate plugins or submitting pull requests to the LT Clojure plugin, I'm adding
-them here for convenience.
+Rather than rolling separate plugins or submitting pull requests to the LT Clojure plugin, I'm adding
+them here for convenience for the time beeing.
 
 === A better autocomplete ?
 The current LT autocompleter for Clojure uses https://github.com/ninjudd/clojure-complete[clojure-complete].
