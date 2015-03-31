@@ -16,6 +16,7 @@
 ;; Nothing to do with refactoring :)
 
 
+
 (defn complete-op [ed sym form]
   (let [filename (-> @ed :info :path)
         ns (-> @ed :info :ns)]
@@ -70,25 +71,26 @@
           :debounce 100
           :reaction (fn [ed]
                       (when (some-> @ed :client :default deref) ;; dont eval unless we're already connected
-;                        (println "Start completion")
                         (let [pos (editor/->cursor ed)
                               token (cljp/find-symbol-at-cursor ed)
                               form (get-top-level-form ed token)
                               sym (:string token)]
-                          ;(prn (complete-op ed sym form))
-                          (object/raise ed
-                                        :eval.custom
-                                        (complete-op ed sym form)
-                                        {:result-type :refactor.complete
-                                         :verbatim true})))))
+                          (when-not (re-find #"\"" sym)
+                            (object/raise ed
+                                          :eval.custom
+                                          (complete-op ed sym form)
+                                          {:result-type :refactor.complete
+                                           :verbatim true}))))))
+
 
 (behavior ::use-local-hints
           :triggers #{:hints+}
           :reaction (fn [ed hints token]
                       (let [tok (:string (cljp/find-symbol-at-cursor ed))]
-;                        (println (str "Input token: " tok " cached token : " (::token @ed)))
-                        (if-not (seq tok)
-                          (object/merge! ed {::token nil})
+                        (if-not (and (seq tok) (not (re-find #"\"" tok)))
+                          (do
+                           (object/merge! ed {::token nil})
+                            hints)
                           (do
                             (when (not= tok (::token @ed))
                               (object/merge! ed {::token tok})

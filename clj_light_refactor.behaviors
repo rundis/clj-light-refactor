@@ -35,12 +35,21 @@
  [:editor.clj :lt.plugins.cljrefactor/resolve-missing!]
  [:editor.clj :lt.plugins.cljrefactor/resolve-missing-res]
  [:editor.clj :lt.plugins.cljrefactor/resolve-missing-selected]
+
+
+ ;; Autocompleter
  [:editor.clj :lt.plugins.cljrefactor.completer/completer.start]
  [:editor.clj :lt.plugins.cljrefactor.completer/completer.res]
-
  [:editor.clj :-lt.plugins.clojure/use-local-hints] ; Override clojure plugin hints
  [:editor.clj :-lt.plugins.auto-complete/textual-hints] ; just messes with autocomplete of clojure stuff
  [:editor.clj :lt.plugins.cljrefactor.completer/use-local-hints]
+
+ ;; Testing
+ [:editor.clj :lt.plugins.cljrefactor.testing/test-all]
+ [:editor.clj :lt.plugins.cljrefactor.testing/test-res]
+
+
+
 
  [:editor.clj.project-file :-lt.plugins.auto-complete/textual-hints] ; just messes with the artifacts completions
  [:editor.clj.project-file :lt.plugins.cljrefactor/artifact-hints]
