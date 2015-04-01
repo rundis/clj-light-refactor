@@ -58,7 +58,7 @@
 (behavior ::finish-artifact-version-hints
           :triggers #{:editor.eval.clj.result.refactor.artifact-versions}
           :reaction (fn [ed res]
-                      (let [vs (-> res :results first :result first :versions first)
+                      (let [vs (-> res :results first :result first :versions)
                             hints (map #(do #js {:completion %}) vs)]
                         (if (> (count vs) 1)
                           (selector/make {:ed ed
@@ -107,7 +107,6 @@
 (behavior ::finish-artifact-hints
           :triggers #{:editor.eval.clj.result.refactor.artifacts}
           :reaction (fn [editor res]
-                      (println res)
                       (let [artifacts (-> res :results first :result first :artifacts)
                             hints (create-artifact-hints editor artifacts)]
                         (object/update! editor [::fetching-deps] (fn [_] false))
