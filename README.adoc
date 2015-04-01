@@ -272,7 +272,21 @@ Textual autocompletion is turned of and so is the default autocompleter (for clo
 
 
 === Test support
-WORK IN PROGRESS
+With the cider-nrepl middleware you can now run clojure tests from within Light Table.
+
+image::testing.png[]
+
+
+.Usage
+* Open a namespace containing clojure tests
+* Run all tests with the command : **Clojure refactor: Test all in ns**
+* Results are displayed inline and a summary is shown in the status bar
+* To run a single test position the cursor in/right next to the test form and invokde **Clojure refactor: Test one at point**
+
+
+
+NOTE: Currently you will need to manually eval any changes you make to a test before rerunning the tests. Otherwise
+the test runner won't pick up your changes. Also note that there is no automatic recognition of tests or test namespaces currently.
 
 
 

@@ -7,8 +7,8 @@
             [lt.objs.console :as console]
             [lt.objs.notifos :as notifos]
             [lt.plugins.clojure :as cljp]
-            [lt.plugins.paredit :as pe]
             [lt.plugins.auto-complete :as ac]
+            [lt.plugins.cljrefactor.util :as util]
             [clojure.string :as s])
   (:require-macros [lt.macros :refer [behavior]]))
 
@@ -29,26 +29,16 @@
          " {:op \"complete\" :ns z-ns :symbol \"" sym "\" :context \"" (when form (s/escape form {\" "\\\""})) "\" }))")))
 
 
-(defn replace-token [s bounds neue]
-  (let [lines (vec (s/split s #"\n"))]
-    (s/join "\n"
-            (update-in lines [(:line bounds)] #(str (.substr % 0 (:start bounds))
-                                                    neue
-                                                    (.substr % (:end bounds)))))))
 
-(defn get-top-level-form [ed token]
-  (let [pos (editor/->cursor ed)
-        line (:line pos)
-        form-start (pe/seek-top ed pos)
-        form-end (pe/seek-bottom ed pos)]
-    (when-not (> line (:line form-end))
-      (editor/move-cursor ed (update-in form-start [:ch] inc))
-      (cmd/exec! :paredit.select.parent)
-      (when-let [sel (editor/selection ed)]
-        (editor/move-cursor ed pos)
-        (replace-token sel {:line (- line (:line form-start))
-                            :start (:start token)
-                            :end (:end token)} "__prefix__")))))
+(defn get-completer-form-ctx [ed token]
+  (when-let [form (util/get-top-level-form ed)]
+    (util/replace-token (:form-str form)
+                        {:line (- (-> token :loc :line) (-> form :start :line))
+                         :start (:start token)
+                         :end (:end token)}
+                        "__prefix__")))
+
+
 
 
 (behavior ::completer.res
@@ -73,7 +63,7 @@
                       (when (some-> @ed :client :default deref) ;; dont eval unless we're already connected
                         (let [pos (editor/->cursor ed)
                               token (cljp/find-symbol-at-cursor ed)
-                              form (get-top-level-form ed token)
+                              form (get-completer-form-ctx ed token)
                               sym (:string token)]
                           (when-not (re-find #"\"" sym)
                             (object/raise ed

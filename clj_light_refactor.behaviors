@@ -46,6 +46,7 @@
 
  ;; Testing
  [:editor.clj :lt.plugins.cljrefactor.testing/test-all]
+ [:editor.clj :lt.plugins.cljrefactor.testing/test-one]
  [:editor.clj :lt.plugins.cljrefactor.testing/test-res]
 
 
