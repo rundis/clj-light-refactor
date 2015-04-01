@@ -52,7 +52,7 @@
     (when-not (= (:type r) "pass")
       (object/raise ed :editor.exception
                     (str "Error:\n" (:actual r))
-                    {:line (:line r)}))))
+                    {:line (dec (:line r))}))))
 
 
 (behavior ::test-res
