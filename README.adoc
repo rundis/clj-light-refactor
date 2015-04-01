@@ -19,8 +19,6 @@ The goal of this plugin is provide Clojure (and hopefully ClojureScript) refacto
 NOTE: **This plugin is not released yet.** If you want try it out you can clone it to the plugins
 folder for LightTable (check the https://github.com/LightTable/LightTable/wiki/User-Intro#user-settings[LT docs] for  where)
 However you are on your own, you should know what you are doing! Also you might have to compile the plugin and/or reload it's behaviors.
-Things are still changing in the downstreams dependencies, which may from time to time lead to breakage.
-
 
 
 == Resources
@@ -38,11 +36,7 @@ Things are still changing in the downstreams dependencies, which may from time t
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-;; if you just want to try out Dependency autocompletion and find usages
-:plugins [[refactor-nrepl "0.2.2"]]
-
-;; If you'd like to try out the bleeding edge stuff (i.e the rest)
-:plugins [[refactor-nrepl "0.3.0-SNAPSHOT"]
+:plugins [[refactor-nrepl "1.0.0"]
           [cider/cider-nrepl "0.8.2"]]
 ----
 
