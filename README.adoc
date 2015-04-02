@@ -132,6 +132,9 @@ image::find_def.png[]
 
 == Middleware dependent refactorings
 
+The following refactorings requires you to use additional middeleware. This enables more
+extensive refactoring support, but the flipside is manual setup and increased connection times for your projects.
+
 === Preconditions
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
