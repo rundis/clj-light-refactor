@@ -115,6 +115,21 @@ Allows you to cycle between if/if-not. Works for both Clojure and ClojureScript.
 * Execute the command
 * If changed to if-not and vice-versa, and true/false parts are swapped accordingly
 
+=== Cycle col
+Command : **Clojure refactor: Cycle col**
+
+Allows you to cycle between collection types. Works for both Clojure and ClojureScript.
+
+.Usage
+* Position cursor inside an collection boundary (typically either after start token or before end token)
+* Execute the command
+* Collection will be cycled as follows
+** List -> Vector
+** Vector -> Map
+** Map -> Set
+** Set -> List
+
+
 
 === Show definition
 Shows definition for a symbol inline. Handy when you just want to have a quick peak

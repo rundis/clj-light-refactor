@@ -26,6 +26,9 @@
  [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-if!]
  [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-if!]
 
+ [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-col!]
+ [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-col!]
+
 
  [:editor.clj :lt.plugins.cljrefactor/ensure-connected]
  [:editor.clj :lt.plugins.cljrefactor/clj-refactor.maybe-project]
