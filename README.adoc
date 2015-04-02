@@ -12,7 +12,8 @@ toc::[]
 Refactoring support in your editor might make you lazy, your typing skills might deteriorate as well. But still if it makes
 you more productive and/or lets you spend more focus at the task at hand maybe its worth it.
 
-The goal of this plugin is provide Clojure (and hopefully ClojureScript) refactoring support in Light Table.
+The goal of this plugin is provide Clojure (and to some extent ClojureScript) refactoring support in Light Table.
+Some of the features requires the manual installation of middleware.
 
 
 == Installation
@@ -24,27 +25,30 @@ However you are on your own, you should know what you are doing! Also you might 
 == Resources
 * http://rundis.github.io/blog/2015/clj_light_refactor.html[Clojure Refactoring in Light Table] - Blogcast showcasing some of the features coming to a plugin manager near you
 
-== Usage
 
-=== Preconditions (Important !)
+== General preconditions
 * The LightTable Clojure plugin (bundles with Light Table so a no-op)
 * The LightTable Paredit plugin (__TODO: Hoping to get rid of this as a dependency__)
 * You need the refactor-nrepl middleware setup (see below)
 
 
-==== refactor-nrepl
-Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
-[source,clojure]
-----
-:plugins [[refactor-nrepl "1.0.0"]
-          [cider/cider-nrepl "0.8.2"]]
-----
-
-==== Limitations
+== Limitations
 * Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
 * Some refactorings currently uses **cljs.reader/read-string** to "parse" code. That reader only
 supports a subset of clojure's syntax (no-ops and/or exceptions may happen when using reader macros like ', #, @ etc)
 
+
+
+== Middleware independent refactorings
+
+=== Introduce ns
+Command: **Clojure refactor: Introduce ns**
+
+Adds toplevel namespace definition. Deduces ns from filename of editor and source-paths in project.clj.
+Finds project.clj either by explicit connection or searching up for a project.clj file.
+
+WARNING: If you have overridden source-paths in a profile definition in your project.clj. This feature will not
+pick up that (currently)
 
 
 === Threading
@@ -101,6 +105,15 @@ Recognized threading macros currently includes : ->, ->>, some-> and some->>
 
 ----
 
+=== Cycle if
+Command : **Clojure refactor: Cycle if**
+
+Allows you to cycle between if/if-not. Works for both Clojure and ClojureScript.
+
+.Usage
+* Position cursor inside an if/if-not form (typically either after start parens or before end parens)
+* Execute the command
+* If changed to if-not and vice-versa, and true/false parts are swapped accordingly
 
 
 === Show definition
@@ -117,15 +130,15 @@ Works for both Clojure and ClojureScript.
 image::find_def.png[]
 
 
+== Middleware dependent refactorings
 
-=== Introduce ns
-Command: **Clojure refactor: Introduce ns**
-
-Adds toplevel namespace definition. Deduces ns from filename of editor and source-paths in project.clj.
-Finds project.clj either by explicit connection or searching up for a project.clj file.
-
-WARNING: If you have overridden source-paths in a profile definition in your project.clj. This feature will not
-pick up that (currently)
+=== Preconditions
+Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
+[source,clojure]
+----
+:plugins [[refactor-nrepl "1.0.0"]
+          [cider/cider-nrepl "0.8.2"]]
+----
 
 
 === Dependency autocompletion

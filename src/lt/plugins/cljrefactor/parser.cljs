@@ -23,6 +23,7 @@
 
 
 ;; Some helper methods
+;; ---------------------
 
 (defn do-find-def [root]
   (when (list? (z/node root))
@@ -42,19 +43,5 @@
        (when (= (-> root z/down z/node pr-str) "with-test")
          (do-find-def (-> root z/down z/right)))))))
 
-
-;; (comment
-;;  (assert (= "jalla"
-;;             (find-test-def "(def \n^{:private true}\n jalla\n;Some doc\n [a b] )"))))
-
-;; (assert (= nil (find-test-def "(+ 1 1)")))
-
-;; (assert (= nil (find-test-def "jalla")))
-
-
-;; (assert (= "my-function"
-;;          (find-test-def
-;;           "(with-test (defn my-function [x y] (+ x y)) (is (= 4 (my-function 2 2))) (is (= 7 (my-function 3 4))))"))
-;;         )
 
 
