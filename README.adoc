@@ -258,6 +258,25 @@ LinkedList
 ----
 
 
+=== Extract function
+Extract a form in a function to a new function form (defn).
+
+.Usage
+* Position cursor somewhere at the correct level for the form you wish to extract (typically right next to start parens)
+* Invoke the command **Clojure refactor: Extract function**
+* The extracted function is added above the current function and extraction at point is replaced with a function invocation
+* A default name of foo is added and selected with the multiple cursor feature in LT
+* Change the name and "esc" to quit multiple cursor mode
+
+If the file you are doing refactoring in is in a bad state, and exception is shown inline.
+
+
+WARNING: The logic for finding function params seems to fail in some cases (including too many or too few). Hopefully this will be fixed
+in the downstream refactor-nrepl dependency soon.
+
+
+
+
 == Bonus
 With the https://github.com/clojure-emacs/cider-nrepl[cider-nrepl] dependency a couple of
 pretty neat features can be exposed. Some of the features have little/nothing to do with refactoring.

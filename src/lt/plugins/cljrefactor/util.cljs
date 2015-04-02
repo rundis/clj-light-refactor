@@ -14,16 +14,22 @@
                              neue
                              (.substr % (:end bounds)))))))
 
-(defn get-top-level-form [ed]
-  (let [pos (editor/->cursor ed)
-        line (:line pos)
-        form-start (pe/seek-top ed pos)
-        form-end (second (pe/form-boundary ed (update-in form-start [:ch] inc)))]
-    (when-not (> line (:line form-end))
-      (editor/move-cursor ed (update-in form-start [:ch] inc))
-      (cmd/exec! :paredit.select.parent)
-      (when-let [sel (editor/selection ed)]
-        (editor/move-cursor ed pos)
-        {:form-str sel
-         :start form-start
-         :end form-end}))))
+(defn get-top-level-form
+  ([ed] (get-top-level-form ed (editor/->cursor ed)))
+  ([ed pos]
+   (let [line (:line pos)
+         form-start (pe/seek-top ed pos)
+         form-end (second (pe/form-boundary ed (update-in form-start [:ch] inc)))]
+     (when-not (> line (:line form-end))
+       (editor/move-cursor ed (update-in form-start [:ch] inc))
+       (cmd/exec! :paredit.select.parent)
+       (when-let [sel (editor/selection ed)]
+         (editor/move-cursor ed pos)
+         {:form-str sel
+          :start form-start
+          :end form-end})))))
+
+
+(defn multiple-cursors? [ed]
+  (let [cm-ed (editor/->cm-ed ed)]
+    (> (count (js->clj (.getSelections cm-ed))) 1)))

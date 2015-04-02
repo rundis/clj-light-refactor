@@ -98,4 +98,3 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.cycle-col!)))})
-

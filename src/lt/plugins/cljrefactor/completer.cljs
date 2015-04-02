@@ -31,12 +31,13 @@
 
 
 (defn get-completer-form-ctx [ed token]
-  (when-let [form (util/get-top-level-form ed)]
-    (util/replace-token (:form-str form)
-                        {:line (- (-> token :loc :line) (-> form :start :line))
-                         :start (:start token)
-                         :end (:end token)}
-                        "__prefix__")))
+  (when token
+    (when-let [form (util/get-top-level-form ed)]
+      (util/replace-token (:form-str form)
+                          {:line (- (-> token :loc :line) (-> form :start :line))
+                           :start (:start token)
+                           :end (:end token)}
+                          "__prefix__"))))
 
 
 
@@ -77,7 +78,9 @@
           :triggers #{:hints+}
           :reaction (fn [ed hints token]
                       (let [tok (:string (cljp/find-symbol-at-cursor ed))]
-                        (if-not (and (seq tok) (not (re-find #"\"" tok)))
+                        (if-not (and (seq tok)
+                                     (not (util/multiple-cursors? ed))
+                                     (not (re-find #"\"" tok)))
                           (do
                            (object/merge! ed {::token nil})
                             hints)

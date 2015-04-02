@@ -55,6 +55,9 @@
  [:editor.clj :lt.plugins.cljrefactor.testing/test-res]
 
 
+ ; Extract fn
+ [:editor.clj :lt.plugins.cljrefactor.function/extract-fn!]
+ [:editor.clj :lt.plugins.cljrefactor.function/unbound-res]
 
 
  [:editor.clj.project-file :-lt.plugins.auto-complete/textual-hints] ; just messes with the artifacts completions
