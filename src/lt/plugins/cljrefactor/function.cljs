@@ -73,7 +73,7 @@
     (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
          " (def tr (refactor-nrepl.client/connect))"
          " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000)"
-         " {:op \"find-unbound\" :file \"" filename "\" :line " (:line loc) " :column " (:ch loc) "}))")))
+         " {:op \"find-unbound\" :file \"" filename "\" :line " (inc (:line loc)) " :column " (inc (:ch loc)) "}))")))
 
 
 
