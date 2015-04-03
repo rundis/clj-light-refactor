@@ -56,21 +56,23 @@
 
 
 (defn extract-result-group [res k]
-  (->> res :results first :result (filter k) first k))
+  (->> res :results first :result (filter k)))
+
+(defn extract-result-group-single [res k]
+  (-> (extract-result-group res k) first k))
+
 
 (behavior ::test-res
           :triggers #{:editor.eval.clj.result.refactor.test}
           :reaction (fn [ed res]
-                      (let [resp (extract-result-group res :results)
-                            summary (extract-result-group res :summary)
+                      (let [resp (extract-result-group-single res :results)
+                            summary (extract-result-group-single res :summary)
                             out (extract-result-group res :out)]
-                        ;;(println res)
-                        ;;(println resp)
                         (show-successes ed resp)
                         (show-errors ed resp)
                         (show-summary summary)
-                        (when out
-                          (console/log out)))
+                        (doseq [msg out]
+                          (console/log (:out msg))))
                       (notifos/done-working)))
 
 (behavior ::test-all
