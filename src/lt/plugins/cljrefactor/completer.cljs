@@ -9,6 +9,7 @@
             [lt.plugins.clojure :as cljp]
             [lt.plugins.auto-complete :as ac]
             [lt.plugins.cljrefactor.util :as util]
+            [lt.plugins.cljrefactor.middleware :as mw]
             [clojure.string :as s])
   (:require-macros [lt.macros :refer [behavior]]))
 
@@ -18,17 +19,9 @@
 
 
 (defn complete-op [ed sym form]
-  (let [filename (-> @ed :info :path)
-        ns (-> @ed :info :ns)]
-    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
-         " (def z-ns " (if ns
-                         (str "'" ns)
-                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
-         " (def tr (refactor-nrepl.client/connect))"
-         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
-         " {:op \"complete\" :ns z-ns :symbol \"" sym "\" :context \"" (when form (s/escape form {\" "\\\""})) "\" }))")))
-
-
+  (mw/create-ns-op ed (merge {:op "complete"
+                              :symbol sym}
+                             (when form) {:context form})))
 
 (defn get-completer-form-ctx [ed token]
   (when token
@@ -39,22 +32,16 @@
                            :end (:end token)}
                           "__prefix__"))))
 
-
-
-
 (behavior ::completer.res
           :triggers #{:editor.eval.clj.result.refactor.complete}
           :reaction (fn [ed res]
-;                      (println "Completer results")
-;                      (println res)
-                      (let [resp (-> res :results first :result)
-                            completions (when resp (-> resp first :completions seq))]
-                        (when completions
-                          (object/merge! ed {::hints (map #(do #js {:completion %}) completions)})
-                          (object/raise ac/hinter :refresh!)
-                          ;(object/raise ed :hint {:force? false})
-                          ))
-                      (notifos/done-working)))
+                      (let [[ok? ret] (mw/extract-result res :singles [:completions])]
+                        (if-not ok?
+                          (object/raise ed :editor.exception {:line (-> ret :meta :line)})
+                          (when-let [completions (:completions ret)]
+                            (object/merge! ed {::hints (map #(do #js {:completion %}) completions)})
+                            (object/raise ac/hinter :refresh!)))
+                        (notifos/done-working))))
 
 
 (behavior ::completer.start

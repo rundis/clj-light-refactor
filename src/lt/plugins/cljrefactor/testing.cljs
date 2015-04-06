@@ -1,6 +1,7 @@
 (ns lt.plugins.cljrefactor.testing
   (:require [lt.plugins.cljrefactor.util :as util]
             [lt.plugins.cljrefactor.parser :as parser]
+            [lt.plugins.cljrefactor.middleware :as mw]
             [lt.object :as object]
             [lt.objs.command :as cmd]
             [lt.objs.editor.pool :as pool]
@@ -23,16 +24,8 @@
 
 
 (defn test-op [ed fixture]
-  (let [filename (-> @ed :info :path)
-        ns (-> @ed :info :ns)]
-    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
-         " (def z-ns " (if ns
-                         (str "'" ns)
-                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
-         " (def tr (refactor-nrepl.client/connect))"
-         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
-         " {:op \"test\" :ns z-ns" (when fixture (str " :tests [\"" fixture "\"]")) "}))")))
-
+  (mw/create-ns-op ed (merge {:op "test"}
+                             (when fixture {:tests [fixture]}))))
 
 
 (defn show-summary [summary]
@@ -65,15 +58,24 @@
 (behavior ::test-res
           :triggers #{:editor.eval.clj.result.refactor.test}
           :reaction (fn [ed res]
-                      (let [resp (extract-result-group-single res :results)
-                            summary (extract-result-group-single res :summary)
-                            out (extract-result-group res :out)]
-                        (show-successes ed resp)
-                        (show-errors ed resp)
-                        (show-summary summary)
-                        (doseq [msg out]
-                          (console/log (:out msg))))
-                      (notifos/done-working)))
+                      (let [[ok? ret] (mw/extract-result res
+                                                         :singles
+                                                         [:summary]
+                                                         :multiples
+                                                         [:results])]
+                        (if-not ok?
+                          (object/raise ed
+                                        :editor.exception
+                                        (:err ret)
+                                        {:line (-> ret :meta :line)})
+                          (do
+                            (show-successes ed (:results ret))
+                            (show-errors ed (:results ret))
+                            (show-summary (:summary ret))
+                            (doseq [msg (:out ret)]
+                              (console/log (:out msg)))))
+
+                        (notifos/done-working))))
 
 (behavior ::test-all
           :triggers #{:refactor.test-all}

@@ -8,7 +8,8 @@
             [lt.plugins.clojure :as cloj]
             [clojure.string :as s]
             [lt.plugins.cljrefactor.pprint :refer [pprint-ns]]
-            [lt.plugins.cljrefactor.prj-parser :as prj-parser])
+            [lt.plugins.cljrefactor.prj-parser :as prj-parser]
+            [lt.plugins.cljrefactor.middleware :as mw])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
@@ -86,17 +87,17 @@
 
 (defn add-require [ns-decl req]
   (let [req-idx (index-of-ns-type ns-decl :require)
-          [pre post] (split-at (if req-idx (+ req-idx 2) 2) ns-decl)]
+        [pre post] (split-at (if req-idx (+ req-idx 2) 2) ns-decl)]
 
-      (cond
-       (and (seq post) (= (ffirst post) :require)) (concat pre
-                                                           (list (concat (first post) [req]))
-                                                           (rest post))
-       (seq post) (concat pre
-                          (list (list :require req))
-                          post)
-       :else (concat pre
-                     (list (list :require req))))))
+    (cond
+     (and (seq post) (= (ffirst post) :require)) (concat pre
+                                                         (list (concat (first post) [req]))
+                                                         (rest post))
+     (seq post) (concat pre
+                        (list (list :require req))
+                        post)
+     :else (concat pre
+                   (list (list :require req))))))
 
 
 
@@ -118,19 +119,21 @@
 ;; --------------- Clean ns -----------------------------------
 
 (defn clean-ns-op [path]
-  (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
-       "(def tr (refactor-nrepl.client/connect))"
-       "(clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000) {:op \"clean-ns\" :path \"" path "\"}))"))
+  (mw/create-op {:op "clean-ns" :path path}))
 
 
 (behavior ::clean-ns-res
           :triggers #{:editor.eval.clj.result.refactor.clean-ns}
           :reaction (fn [ed res]
-                      (when-let [cleaned-ns (-> res :results first :result first :ns)]
-                        (when (seq cleaned-ns)
-                          (replace-ns ed cleaned-ns)
-                          (notifos/set-msg! "Namespace cleaned !")))))
-
+                      (let [[ok? ret] (mw/extract-result res :singles [:ns])]
+                        (if-not ok?
+                          (object/raise ed
+                                        :editor.exception
+                                        (:err ret)
+                                        {:line (-> ret :meta :line)})
+                          (when (seq (:ns ret))
+                            (replace-ns ed (:ns ret))
+                            (notifos/set-msg! "Namespace cleaned !"))))))
 
 (cmd/command {:command ::clean-ns
               :desc "Clojure refactor: Cleanup ns"

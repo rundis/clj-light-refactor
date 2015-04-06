@@ -61,14 +61,15 @@
 
 
  [:editor.clj.project-file :-lt.plugins.auto-complete/textual-hints] ; just messes with the artifacts completions
- [:editor.clj.project-file :lt.plugins.cljrefactor/artifact-hints]
- [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-hints]
- [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-hints]
- [:editor.clj.project-file :lt.plugins.cljrefactor/finish-artifact-version-hints]
- [:editor.clj.project-file :lt.plugins.cljrefactor/trigger-artifact-version-hints]
- [:editor.clj.project-file :lt.plugins.cljrefactor/artifact-version-selected]
- [:editor.clj.project-file :lt.plugins.cljrefactor/hotload-dep!]
- [:editor.clj.project-file :lt.plugins.cljrefactor/hotload-dep.res]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/artifact-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/finish-artifact-hints]
+ [:refactor.artifacts :lt.plugins.cljrefactor.artifacts/trigger-artifact-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/finish-artifact-version-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/trigger-artifact-version-hints]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/artifact-version-selected]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/hotload-dep!]
+ [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/hotload-dep.res]
+ [:editor.clj.project-file :-lt.plugins.cljrefactor.completer/use-local-hints]
 
 
  [:refactor.usages :lt.plugins.cljrefactor.usages/on-close]

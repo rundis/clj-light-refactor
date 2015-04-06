@@ -12,7 +12,8 @@
             [crate.binding :refer [bound]]
             [crate.core :as crate]
             [clojure.string :as s]
-            [lt.plugins.cljrefactor.input-prompt :as prompt])
+            [lt.plugins.cljrefactor.input-prompt :as prompt]
+            [lt.plugins.cljrefactor.middleware :as mw])
   (:require-macros [lt.macros :refer [defui behavior]]))
 
 
@@ -77,15 +78,8 @@
 
 
 (defn find-symbol-op [ed sym]
-  (let [filename (-> @ed :info :path)
-        ns (-> @ed :info :ns)]
-    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl) (require 'lighttable.nrepl.eval)"
-         " (def z-ns " (if ns
-                         (str "'" ns)
-                         (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")"
-         " (def tr (refactor-nrepl.client/connect))"
-         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 10000)"
-         " {:op \"find-symbol\" :ns z-ns :name \"" sym \""}))")))
+   (mw/create-ns-op ed {:op "find-symbol"
+                       :name sym}))
 
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}

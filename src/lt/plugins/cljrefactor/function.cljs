@@ -1,6 +1,7 @@
 (ns lt.plugins.cljrefactor.function
   (:require [lt.plugins.cljrefactor.parser :as p]
             [lt.plugins.cljrefactor.util :as util]
+            [lt.plugins.cljrefactor.middleware :as mw]
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
@@ -69,26 +70,22 @@
 
 
 (defn unbound-op [ed loc]
-  (let [filename (-> @ed :info :path)]
-    (str "(do (require 'refactor-nrepl.client) (require 'clojure.tools.nrepl)"
-         " (def tr (refactor-nrepl.client/connect))"
-         " (clojure.tools.nrepl/message (clojure.tools.nrepl/client tr 5000)"
-         " {:op \"find-unbound\" :file \"" filename "\" :line " (inc (:line loc)) " :column " (inc (:ch loc)) "}))")))
-
-
+  (mw/create-op {:op "find-unbound"
+                 :file (-> @ed :info :path)
+                 :line (inc (:line loc))
+                 :column (inc (:ch loc))}))
 
 
 (behavior ::unbound-res
           :triggers #{:editor.eval.clj.result.refactor.unbound-res}
           :reaction (fn [ed res]
-                      (let [resp (-> res :results first :result)
-                            status (-> resp first :status first)
-                            err (-> resp first :err)
-                            loc (-> res :meta :loc)
-                            unbound (-> resp first :unbound)]
-                        (if-not err
-                          (do-extract ed loc unbound)
-                          (object/raise ed :editor.exception err {:line (:line loc)})))))
+                      (let [[ok? ret] (mw/extract-result res :singles [:unbound])]
+                        (if-not ok?
+                          (object/raise ed
+                                        :editor.exception
+                                        (:err ret)
+                                        {:line (-> ret :meta :line)})
+                          (do-extract ed (-> ret :meta-lt :loc) (:unbound ret))))))
 
 
 (behavior ::extract-fn!
