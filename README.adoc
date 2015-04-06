@@ -154,7 +154,7 @@ extensive refactoring support, but the flipside is manual setup and increased co
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-:plugins [[refactor-nrepl "1.0.0"]
+:plugins [[refactor-nrepl "1.0.1"]
           [cider/cider-nrepl "0.8.2"]]
 ----
 
