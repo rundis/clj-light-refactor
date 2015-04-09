@@ -63,7 +63,6 @@
 
 (defn usages->items [usages]
   (vec (->> usages
-            (filter :occurrence)
             (map (fn [{x :occurrence}]
                    (apply hash-map (cljs.reader/read-string x)))))))
 
@@ -84,20 +83,20 @@
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}
           :reaction (fn [ed res]
-                      (println res)
-                      (let [resp (-> res :results first :result)
-                            items (usages->items resp)
-                            status (first (filter :status resp))]
-                        (if (seq items)
-                          (object/merge! refactor-usages {:items (assoc-in items [0 :active] true)})
-                          (object/merge! refactor-usages {:items nil}))
-                        (show-results refactor-usages (items->view (:items @refactor-usages)))
-                        (object/update! refactor-usages [:search-for :namespace] (fn [_]
-                                                                                   (-> @ed :info :ns)))
-                        (when-let [err (:error status)]
-                          (object/raise ed :editor.exception
-                                        (str "Error when executing find usages:\n " err)
-                                        {:line (-> res :results first :meta :line)}))
+                      (let [[ok? ret] (mw/extract-result res :multiples [:occurrence])
+                            items (usages->items (:occurrence ret))]
+                        (if-not ok?
+                          (object/raise ed
+                                        :editor.exception
+                                        (:err ret)
+                                        {:line (-> ret :meta :line)})
+                          (do
+                            (if (seq items)
+                              (object/merge! refactor-usages {:items (assoc-in items [0 :active] true)})
+                              (object/merge! refactor-usages {:items nil}))
+                            (show-results refactor-usages (items->view (:items @refactor-usages)))
+                            (object/update! refactor-usages [:search-for :namespace] (fn [_]
+                                                                                       (-> @ed :info :ns)))))
 
                         (notifos/done-working "Find usages completed"))))
 
@@ -207,25 +206,19 @@
 (behavior ::rename-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.rename-symbol}
           :reaction (fn [ed res]
-                      (let [resp (-> res :results first :result)
-                            status (first (filter :status resp))
-                            info (-> res :meta)
-                            pos (:pos info)]
-                        (if-let [err (:error status)]
-                          (object/raise ed :editor.exception
-                                        (str "Error when executing renaming symbol:\n " err)
-                                        {:line pos})
-                          (if-not (seq resp)
-                            (object/raise ed :editor.exception
-                                          (str "Error when executing renaming symbol:\n "
-                                               " No results from middleware, probably because of errors in a candidate ns, try running find usages to see which ns has errors")
-                                          {:line pos})
-                            (let [itemsByFile (items->view (usages->items resp))]
-                              (replace-in-editors! itemsByFile info)
+                      (let [[ok? ret] (mw/extract-result res :multiples [:occurrence])]
+                        (if-not ok?
+                          (object/raise ed
+                                        :editor.exception
+                                        (:err ret)
+                                        {:line (-> ret :meta :line)})
+                          (let [itemsByFile (items->view (usages->items (:occurrence ret)))
+                                pos (-> ret :meta-lt :pos)]
+                              (replace-in-editors! itemsByFile (:meta-lt ret))
                               (editor/focus ed)
                               (editor/move-cursor ed pos)
-                              (object/raise ed :editor.result "Renamed ok !" pos)))))
-                      (notifos/done-working "Rename completed")))
+                              (object/raise ed :editor.result "Renamed ok !" pos)))
+                        (notifos/done-working "Rename completed"))))
 
 (behavior ::rename-symbol.start
           :triggers #{:refactor.rename-symbol}

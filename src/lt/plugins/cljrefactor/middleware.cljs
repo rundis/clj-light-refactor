@@ -50,7 +50,7 @@
       [true (-> ret
                  (merge
                   (into {} (map #(hash-map % (extract-result-group-single res %)) singles))
-                  (into {} (map #(hash-map % (extract-result-group-single res %)) multiples))))])))
+                  (into {} (map #(hash-map % (extract-result-group res %)) multiples))))])))
 
 
 

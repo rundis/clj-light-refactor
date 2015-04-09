@@ -223,6 +223,8 @@ Application of find usages that renames a symbol
 WARNING: This feature is currently somewhat incomplete. After a rename it doesn't currently reload
 namespaces as necessary. (Eval'ing the newly renamed symbol should get you back on track though)
 
+TIP: The above becomes a lot more managable should you adopt the https://github.com/stuartsierra/reloaded[reloaded] workflow.
+
 
 === Cleanup ns
 Will clean up your namespace definition (removing unused, sort etc). See https://github.com/clojure-emacs/refactor-nrepl#clean-ns[here] for details

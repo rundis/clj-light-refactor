@@ -113,7 +113,7 @@
           :reaction (fn [ed res]
                       (let [[ok? ret] (mw/extract-result res :singles [:candidates])]
                         (if-not ok?
-                          (object/raise ed :editor.exception {:line (-> ret :meta :line)})
+                          (object/raise ed :editor.exception (:err ret) {:line (-> ret :meta :line)})
                           (if-let [candidates (parse-missing res)]
                             (if (= (count candidates) 1)
                               (object/raise ed :resolve-missing.selected (first candidates))
