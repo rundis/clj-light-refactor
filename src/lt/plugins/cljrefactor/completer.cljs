@@ -32,6 +32,11 @@
                            :end (:end token)}
                           "__prefix__"))))
 
+(defn create-hints [completions]
+  (map #(do #js {:completion (:candidate %)
+                 :text (:candidate %)})
+       completions))
+
 (behavior ::completer.res
           :triggers #{:editor.eval.clj.result.refactor.complete}
           :reaction (fn [ed res]
@@ -39,7 +44,7 @@
                         (if-not ok?
                           (object/raise ed :editor.exception {:line (-> ret :meta :line)})
                           (when-let [completions (:completions ret)]
-                            (object/merge! ed {::hints (map #(do #js {:completion %}) completions)})
+                            (object/merge! ed {::hints (create-hints completions)})
                             (object/raise ac/hinter :refresh!)))
                         (notifos/done-working))))
 
