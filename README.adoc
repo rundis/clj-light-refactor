@@ -333,6 +333,19 @@ NOTE: Currently you will need to manually eval any changes you make to a test be
 the test runner won't pick up your changes. Also note that there is no automatic recognition of tests or test namespaces currently.
 
 
+=== Better formatting
+Cider-nrepl supports https://github.com/weavejester/cljfmt[cljfmt]. This provides a much more powerful
+formatting of Clojure code.
+
+.Usage
+* With the cursor inside a form
+* Invoke the command **Clojure refactor: Format code**
+* The top-level form is reformatted and cursor positioned at the beginning of the form
+* If you make an explicit selection, only that code will be formatted
+
+NOTE: **Requires cider-nrepl 0.9.0-SNAPSHOT or higher**.
+
+
 
 == Credits
 * https://github.com/clojure-emacs/refactor-nrepl[refactor-nrepl] - nREPL middleware to support refactorings in an editor agnostic way.

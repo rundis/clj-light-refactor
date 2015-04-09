@@ -84,6 +84,7 @@
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}
           :reaction (fn [ed res]
+                      (println res)
                       (let [resp (-> res :results first :result)
                             items (usages->items resp)
                             status (first (filter :status resp))]

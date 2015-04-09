@@ -1,10 +1,12 @@
 (ns lt.plugins.cljrefactor.form-refactor
   (:require [lt.plugins.cljrefactor.parser :as p]
+            [lt.plugins.cljrefactor.util :as u]
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
             [lt.objs.command :as cmd]
             [lt.plugins.paredit :as pe]
+            [lt.plugins.clojure :as cp]
             [clojure.zip :as z]
             [clojure.string :as s])
   (:require-macros [lt.macros :refer [behavior]]))
@@ -41,6 +43,25 @@
        (= (.substr form-str 0 2) "#{") (wrap-in "(" ")" 2)
        :else nil))))
 
+
+(defn find-node [start candidate-str]
+  (loop [cur start]
+    (cond
+     (= (-> cur z/node str) candidate-str) cur
+     (not (z/end? cur)) (recur (z/next cur))
+    :else nil)))
+
+
+
+(defn move-up [form-str candidate-str]
+  (let [root (p/str->seq-zip form-str)
+        loc? (when (seq root) (find-node root candidate-str))]
+    (when (and loc? (z/node (z/remove loc?)))
+      (z/root (z/insert-left (z/remove loc?) (z/node loc?))))))
+
+;;(move-up "(+ 1 (\"__jalla__\" \"dill\"))" "__jalla__")
+
+;;(move-up "(\"__jalla__\")" "__jalla__")
 
 
 (defn hash-prefixed? [ed start]
@@ -98,3 +119,25 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.cycle-col!)))})
+
+
+;; (cmd/command {:command ::move-up
+;;              :desc "Clojure refactor: Move node up"
+;;              :exec (fn []
+;;                      (let [ed (pool/last-active)
+;;                            pos (editor/->cursor ed)
+;;                            token (cp/find-symbol-at-cursor ed)
+;;                            move-node (:string token)
+;;                            top-form (u/get-top-level-form ed pos)]
+
+;;                        (when-let [moved (move-up (u/replace-token (:form-str top-form)
+;;                                                                   {:line (- (:line pos) (:line (:start top-form)))
+;;                                                                    :start (:start token)
+;;                                                                    :end (:end token)}
+;;                                                                   "__move-node__")
+;;                                                  "__move-node__")]
+
+;;                          (let [bounds (u/find-token-bounds moved "__move-node__")
+;;                                replaced (u/replace-token moved bounds move-node)]
+;;                           (editor/replace ed (:start top-form) (:end top-form) replaced)
+;;                            ))))})

@@ -14,17 +14,25 @@
                              neue
                              (.substr % (:end bounds)))))))
 
+
+
+(defn find-token-bounds [s token]
+  (some #(let [idx (.indexOf (:content %) token)]
+           (when (> idx -1)
+             (assoc % :start idx :end (+ idx (count token)))))
+        (keep-indexed (fn [line content] {:line line :content content})
+                      (s/split s #"\n"))))
+
+
+
 (defn get-top-level-form
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed pos]
    (let [line (:line pos)
          form-start (pe/seek-top ed pos)
-         form-end (second (pe/form-boundary ed (update-in form-start [:ch] inc)))]
+         form-end (pe/seek-bottom ed (update-in form-start [:ch] inc))]
      (when-not (> line (:line form-end))
-       (editor/move-cursor ed (update-in form-start [:ch] inc))
-       (cmd/exec! :paredit.select.parent)
-       (when-let [sel (editor/selection ed)]
-         (editor/move-cursor ed pos)
+       (when-let [sel (editor/range ed form-start form-end)]
          {:form-str sel
           :start form-start
           :end form-end})))))
@@ -33,3 +41,5 @@
 (defn multiple-cursors? [ed]
   (let [cm-ed (editor/->cm-ed ed)]
     (> (count (js->clj (.getSelections cm-ed))) 1)))
+
+
