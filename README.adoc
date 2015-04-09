@@ -1,6 +1,6 @@
 = Clj-Light-Refactor
 Plugin that provides Clojure refactoring support in Light Table
-v0.1.0, 2015-02-15: Draft release
+v0.1.0, 2015-04-09: Initial release
 :library: Asciidoctor
 :numbered:
 :idprefix:
@@ -17,9 +17,15 @@ Some of the features requires the manual installation of middleware.
 
 
 == Installation
-NOTE: **This plugin is not released yet.** If you want try it out you can clone it to the plugins
+
+=== Plugin manager
+You will find the plugin through the Light Table plugin manager under the name clj-light-refactor
+
+=== Development
+If you want try it out the lastest stuff you can clone it to the plugins
 folder for LightTable (check the https://github.com/LightTable/LightTable/wiki/User-Intro#user-settings[LT docs] for  where)
-However you are on your own, you should know what you are doing! Also you might have to compile the plugin and/or reload it's behaviors.
+
+WARNING: However you are on your own, you should know what you are doing! Also you might have to compile the plugin and/or reload it's behaviors.
 
 
 == Resources
@@ -36,6 +42,10 @@ However you are on your own, you should know what you are doing! Also you might 
 * Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
 * Some refactorings currently uses **cljs.reader/read-string** to "parse" code. That reader only
 supports a subset of clojure's syntax (no-ops and/or exceptions may happen when using reader macros like ', #, @ etc)
+* Some of the refactoring features described in chapter 6 uses clojure.zip (in its ClojureScript incarnation).
+An unfortunate side-effect of this is the loss of comments, metadata and most notably formatting. Until I'm able to add some sort of proper parser
+this will remain a pretty severe limitation.
+
 
 
 
@@ -155,7 +165,7 @@ Add the following, either in your project's __project.clj__, or in the :user pro
 [source,clojure]
 ----
 :plugins [[refactor-nrepl "1.0.1"]
-          [cider/cider-nrepl "0.8.2"]]
+          [cider/cider-nrepl "0.9.0-SNAPSHOT"]]
 ----
 
 
@@ -271,11 +281,6 @@ Extract a form in a function to a new function form (defn).
 If the file you are doing refactoring in is in a bad state, and exception is shown inline.
 
 
-WARNING: The logic for finding function params seems to fail in some cases (including too many or too few). Hopefully this will be fixed
-in the downstream refactor-nrepl dependency soon.
-
-
-
 
 == Bonus
 With the https://github.com/clojure-emacs/cider-nrepl[cider-nrepl] dependency a couple of
@@ -323,6 +328,7 @@ image::testing.png[]
 
 .Usage
 * Open a namespace containing clojure tests
+* Eval the file
 * Run all tests with the command : **Clojure refactor: Test all in ns**
 * Results are displayed inline and a summary is shown in the status bar
 * To run a single test position the cursor in/right next to the test form and invokde **Clojure refactor: Test one at point**
@@ -370,7 +376,7 @@ image::macroexpand.png[]
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
-* Pending first version
+* 0.1.0 Getting the ball rolling
 
 == License
 MIT, same as Light Table. See LICENSE.md for details.
