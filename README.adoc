@@ -1,6 +1,6 @@
 = Clj-Light-Refactor
 Plugin that provides Clojure refactoring support in Light Table
-v0.1.1, 2015-02-15: Draft release
+v0.1.0, 2015-02-15: Draft release
 :library: Asciidoctor
 :numbered:
 :idprefix:
@@ -344,6 +344,21 @@ formatting of Clojure code.
 * If you make an explicit selection, only that code will be formatted
 
 NOTE: **Requires cider-nrepl 0.9.0-SNAPSHOT or higher**.
+
+
+=== Macroexpand
+Ever wanted to know what that macro ends up becoming in terms of code ? Well now you can easily do that
+inline from Light Table.
+
+image::macroexpand.png[]
+
+.Usage
+* With the cursor inside a form
+* Invoke the command **Clojure refactor: Macroexpand**
+* The top level form is selected and the macroexansion of that is shown inline below the form
+* Additional:
+** If you make an expliit selection only that will be exapanded
+** To expand all the way use the command **Clojure refactor: Macroexpand all**
 
 
 

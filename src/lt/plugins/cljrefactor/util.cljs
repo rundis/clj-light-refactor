@@ -14,8 +14,6 @@
                              neue
                              (.substr % (:end bounds)))))))
 
-
-
 (defn find-token-bounds [s token]
   (some #(let [idx (.indexOf (:content %) token)]
            (when (> idx -1)

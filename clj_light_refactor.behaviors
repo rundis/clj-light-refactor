@@ -64,6 +64,11 @@
  [:editor.clj :lt.plugins.cljrefactor.format/format-code!]
  [:editor.clj :lt.plugins.cljrefactor.format/format-res]
 
+ ; Macroexpand
+ [:editor.clj :lt.plugins.cljrefactor.macroexpand/start-macroexpand]
+ [:editor.clj :lt.plugins.cljrefactor.macroexpand/macroexpand]
+ [:editor.clj :lt.plugins.cljrefactor.macroexpand/macroexpand-res]
+
 
  [:editor.clj.project-file :-lt.plugins.auto-complete/textual-hints] ; just messes with the artifacts completions
  [:editor.clj.project-file :lt.plugins.cljrefactor.artifacts/artifact-hints]
