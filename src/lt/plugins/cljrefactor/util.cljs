@@ -5,6 +5,31 @@
             [clojure.string :as s]))
 
 
+;; FROM PAREDIT MASTER
+(defn seek-top [ed loc]
+  (let [pars (re-pattern "\\(|\\{|\\[")]
+    (loop [loc loc]
+      (let [cur (second (pe/scan {:ed ed
+                               :loc loc
+                               :dir :left
+                               :regex pars
+                               :skip pe/in-string?}))
+            adj (editor/adjust-loc cur -1)]
+        (if (or (zero? (:ch cur))
+                (nil? (:ch cur)))
+          cur
+          (recur adj))))))
+
+(defn seek-bottom [ed loc]
+  (let [adj->top (fn [pos] (editor/adjust-loc pos 1))
+        start (seek-top ed loc)
+        end (second (pe/form-boundary ed (adj->top start) nil))]
+    (adj->top end)))
+
+
+
+
+
 (defn replace-token [s bounds neue]
   (let [lines (vec (s/split s #"\n"))]
     (s/join "\n"
@@ -27,8 +52,8 @@
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed pos]
    (let [line (:line pos)
-         form-start (pe/seek-top ed pos)
-         form-end (pe/seek-bottom ed (update-in form-start [:ch] inc))]
+         form-start (seek-top ed pos)
+         form-end (seek-bottom ed (update-in form-start [:ch] inc))]
      (when-not (> line (:line form-end))
        (when-let [sel (editor/range ed form-start form-end)]
          {:form-str sel
