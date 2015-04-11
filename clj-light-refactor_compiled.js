@@ -470,8 +470,8 @@ var cur = cljs.core.second.call(null,lt.plugins.paredit.scan.call(null,new cljs.
 {return cur;
 } else
 {{
-var G__21470 = adj;
-loc__$1 = G__21470;
+var G__21445 = adj;
+loc__$1 = G__21445;
 continue;
 }
 }
@@ -482,12 +482,12 @@ lt.plugins.cljrefactor.util.seek_bottom = (function seek_bottom(ed,loc){var adj_
 });var start = lt.plugins.cljrefactor.util.seek_top.call(null,ed,loc);var end = cljs.core.second.call(null,lt.plugins.paredit.form_boundary.call(null,ed,adj__GT_top.call(null,start),null));return adj__GT_top.call(null,end);
 });
 lt.plugins.cljrefactor.util.replace_token = (function replace_token(s,bounds,neue){var lines = cljs.core.vec.call(null,clojure.string.split.call(null,s,/\n/));return clojure.string.join.call(null,"\n",cljs.core.update_in.call(null,lines,new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"line","line",1017226086).cljs$core$IFn$_invoke$arity$1(bounds)], null),((function (lines){
-return (function (p1__21468_SHARP_){return [cljs.core.str(p1__21468_SHARP_.substr(0,new cljs.core.Keyword(null,"start","start",1123661780).cljs$core$IFn$_invoke$arity$1(bounds))),cljs.core.str(neue),cljs.core.str(p1__21468_SHARP_.substr(new cljs.core.Keyword(null,"end","end",1014004813).cljs$core$IFn$_invoke$arity$1(bounds)))].join('');
+return (function (p1__21443_SHARP_){return [cljs.core.str(p1__21443_SHARP_.substr(0,new cljs.core.Keyword(null,"start","start",1123661780).cljs$core$IFn$_invoke$arity$1(bounds))),cljs.core.str(neue),cljs.core.str(p1__21443_SHARP_.substr(new cljs.core.Keyword(null,"end","end",1014004813).cljs$core$IFn$_invoke$arity$1(bounds)))].join('');
 });})(lines))
 ));
 });
-lt.plugins.cljrefactor.util.find_token_bounds = (function find_token_bounds(s,token){return cljs.core.some.call(null,(function (p1__21469_SHARP_){var idx = new cljs.core.Keyword(null,"content","content",1965434859).cljs$core$IFn$_invoke$arity$1(p1__21469_SHARP_).indexOf(token);if((idx > -1))
-{return cljs.core.assoc.call(null,p1__21469_SHARP_,new cljs.core.Keyword(null,"start","start",1123661780),idx,new cljs.core.Keyword(null,"end","end",1014004813),(idx + cljs.core.count.call(null,token)));
+lt.plugins.cljrefactor.util.find_token_bounds = (function find_token_bounds(s,token){return cljs.core.some.call(null,(function (p1__21444_SHARP_){var idx = new cljs.core.Keyword(null,"content","content",1965434859).cljs$core$IFn$_invoke$arity$1(p1__21444_SHARP_).indexOf(token);if((idx > -1))
+{return cljs.core.assoc.call(null,p1__21444_SHARP_,new cljs.core.Keyword(null,"start","start",1123661780),idx,new cljs.core.Keyword(null,"end","end",1014004813),(idx + cljs.core.count.call(null,token)));
 } else
 {return null;
 }
@@ -1296,8 +1296,7 @@ lt.object.behavior_STAR_.call(null,new cljs.core.Keyword("lt.plugins.cljrefactor
 lt.plugins.cljrefactor.artifacts.__BEH__artifact_hints = (function __BEH__artifact_hints(ed,hints,token){lt.object.merge_BANG_.call(null,ed,new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword("lt.plugins.cljrefactor.artifacts","token","lt.plugins.cljrefactor.artifacts/token",4450683105),token], null));
 if(cljs.core.truth_(new cljs.core.Keyword("lt.plugins.cljrefactor.artifacts","artifacts","lt.plugins.cljrefactor.artifacts/artifacts",4637854729).cljs$core$IFn$_invoke$arity$1(cljs.core.deref.call(null,lt.plugins.cljrefactor.artifacts.refactor_artifacts))))
 {} else
-{cljs.core.println.call(null,"Do trigger !");
-lt.object.raise.call(null,lt.plugins.cljrefactor.artifacts.refactor_artifacts,new cljs.core.Keyword(null,"artifact.hints.update!","artifact.hints.update!",2088367020),ed);
+{lt.object.raise.call(null,lt.plugins.cljrefactor.artifacts.refactor_artifacts,new cljs.core.Keyword(null,"artifact.hints.update!","artifact.hints.update!",2088367020),ed);
 }
 var temp__4090__auto__ = new cljs.core.Keyword("lt.plugins.cljrefactor.artifacts","artifacts","lt.plugins.cljrefactor.artifacts/artifacts",4637854729).cljs$core$IFn$_invoke$arity$1(cljs.core.deref.call(null,lt.plugins.cljrefactor.artifacts.refactor_artifacts));if(cljs.core.truth_(temp__4090__auto__))
 {var artifacts = temp__4090__auto__;return lt.plugins.cljrefactor.artifacts.create_artifact_hints.call(null,ed,artifacts);

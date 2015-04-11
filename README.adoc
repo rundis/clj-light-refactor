@@ -378,6 +378,7 @@ image::macroexpand.png[]
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
+* 0.1.2 Bugfix: Forgot to update versions everywhere (:
 * 0.1.1 Bugfix: Missing paredit functions not released in Paredit 0.0.4
 * 0.1.0 Getting the ball rolling
 

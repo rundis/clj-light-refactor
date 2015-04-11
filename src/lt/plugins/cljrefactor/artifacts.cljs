@@ -111,7 +111,6 @@
           :reaction (fn [ed hints token]
                       (object/merge! ed {::token token})
                       (when-not (::artifacts @refactor-artifacts)
-                        (println "Do trigger !")
                         (object/raise refactor-artifacts :artifact.hints.update! ed))
                       (if-let [artifacts (::artifacts @refactor-artifacts)]
                         (create-artifact-hints ed artifacts)
