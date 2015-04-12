@@ -378,6 +378,9 @@ image::macroexpand.png[]
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
+* 0.1.3 Bugfixes:
+** Rename symbol bypasses history check now
+** Changed from .contains to .indexOf for strings as atom-shell branch of LT wasn't to fond of .contains
 * 0.1.2 Bugfix: Forgot to update versions everywhere (:
 * 0.1.1 Bugfix: Missing paredit functions not released in Paredit 0.0.4
 * 0.1.0 Getting the ball rolling
