@@ -34,11 +34,12 @@
     (notifos/set-msg! (str "Test summary: " summary))))
 
 (defn show-successes [ed results]
-  (doseq [ks (filter (fn [[k v]]
-                       (every? #(= (:type %) "pass") v))
-                     results)]
-    (let [line (find-line-containing ed (name (first ks)))]
-      (object/raise ed :editor.result "✓" {:line line}))))
+  (when (seq results)
+    (doseq [ks (filter (fn [[k v]]
+                         (every? #(= (:type %) "pass") v))
+                       results)]
+      (let [line (find-line-containing ed (name (first ks)))]
+        (object/raise ed :editor.result "✓" {:line line})))))
 
 (defn show-errors [ed results]
   (doseq [r (apply concat (vals results))]
@@ -48,21 +49,13 @@
                     {:line (dec (:line r))}))))
 
 
-(defn extract-result-group [res k]
-  (->> res :results first :result (filter k)))
-
-(defn extract-result-group-single [res k]
-  (-> (extract-result-group res k) first k))
-
 
 (behavior ::test-res
           :triggers #{:editor.eval.clj.result.refactor.test}
           :reaction (fn [ed res]
                       (let [[ok? ret] (mw/extract-result res
                                                          :singles
-                                                         [:summary]
-                                                         :multiples
-                                                         [:results])]
+                                                         [:summary :results])]
                         (if-not ok?
                           (object/raise ed
                                         :editor.exception
