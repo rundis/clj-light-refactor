@@ -166,7 +166,8 @@
 
     (.setSelections cm-ed (clj->js selections))
     (.replaceSelections cm-ed (clj->js (repeat (count selections) new)))
-    (doc/save file (editor/->val ed))
+    ;(doc/save file (editor/->val ed))
+    (files/save file (editor/->val ed))
     (object/destroy! ed)))
 
 (defn replace-in-open-ed! [ed selections new]
