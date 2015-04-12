@@ -27,7 +27,7 @@
   (let [res (array)]
     (.eachLine (.getDoc (editor/->cm-ed ed))
                (fn [line-handle]
-                 (when (.contains (.-text line-handle) txt)
+                 (when (> (.indexOf (.-text line-handle) txt) -1)
                    (.push res (.-line(.lineInfo (editor/->cm-ed ed) line-handle))))))
     (first (seq res))))
 

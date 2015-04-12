@@ -27,6 +27,6 @@
   (or (:source-paths prj) ["src"]))
 
 (defn find-sub-path [prj-dir path src-dirs]
-  (some #(if (.contains path (files/join prj-dir %))
+  (some #(if (> (.indexOf path (files/join prj-dir %)) -1)
            (.substring path (+  1 (count (files/join prj-dir %))))
            nil) src-dirs))
