@@ -6,8 +6,9 @@
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
             [lt.objs.command :as cmd]
-            [lt.plugins.cljrefactor.parser :as p])
-  (:require-macros [lt.macros :refer [defui behavior]]))
+            [lt.plugins.cljrefactor.parser :as p]
+            [lt.plugins.cljrefactor.util :as u])
+  (:require-macros [lt.macros :refer [behavior]]))
 
 
 
@@ -160,15 +161,20 @@
           maybe-unwrap-threading
           p/zip->str))))
 
+(defn format-form [form-str]
+  (-> form-str
+      (s/replace #"\s+\(" "\n(")))
 
 
 (defn replace-cmd [ed replace-fn]
-  (cmd/exec! :paredit.select.parent)
-  (when-let [candidate  (editor/selection ed)]
-    (let [bounds (editor/selection-bounds ed)]
-      (when-let [res (replace-fn candidate)]
-        (editor/replace-selection ed res))
-      (editor/move-cursor ed (-> bounds :from (update-in [:ch] inc))))))
+  (let [{:keys [form-str start end]} (u/get-form ed)]
+    (when form-str
+      (when-let [res (some-> form-str replace-fn format-form)]
+        (editor/replace ed start end res)
+        (let [{s1 :start s2 :end} (u/get-form ed (-> start (update-in [:ch] inc)))]
+          (editor/set-selection ed s1 s2)
+          (editor/indent-selection ed "smart")))
+      (editor/move-cursor ed (-> start (update-in [:ch] inc))))))
 
 
 (behavior ::thread-fully!

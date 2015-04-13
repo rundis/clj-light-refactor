@@ -12,6 +12,12 @@
   (:require-macros [lt.macros :refer [behavior]]))
 
 
+(defn top [zipnode]
+  (loop [n zipnode]
+    (if-not (z/up n)
+      n
+      (recur (z/up n)))))
+
 (defn if-node? [loc]
   (when (and (seq loc) (list? (z/node loc)))
     (-> loc z/down z/node  ((fn [s] (some #{s} ['if 'if-not]))))))
@@ -19,7 +25,7 @@
 
 (defn swap-if-nodes [loc]
   (let [move (-> loc z/down z/right z/right z/node)]
-    (-> loc z/down z/right z/right z/remove z/rightmost (z/insert-right move) z/up)))
+    (-> loc z/down z/right z/right z/remove top (z/append-child move))))
 
 (defn cycle-if [form-str]
   (let [root (p/str->seq-zip form-str)
@@ -64,41 +70,46 @@
 ;;(move-up "(\"__jalla__\")" "__jalla__")
 
 
-(defn hash-prefixed? [ed start]
-  (= (editor/range ed  start (update-in start [:ch] inc)) "#"))
-
-(defn set-form? [ed start]
-  (and (> (:ch start) 0)
-       (hash-prefixed? ed (update-in start [:ch] dec))))
-
-(defn get-form-range [ed]
-  (let [pos (editor/->cursor ed)
-        [start end] (pe/form-boundary ed pos)]
-    (when start
-      (if (set-form? ed start)
-        {:start (update-in start [:ch] dec)
-         :end (update-in end [:ch] inc)}
-        {:start start
-         :end (update-in end [:ch] inc)}))))
+;; DOH no negative lookbehind in JS
+;;"(?<!if|\bif-not\b)\s\(" "\n("
+(defn inject-nl[form-str]
+  (let [idx-a (.indexOf form-str "if (")
+        idx-b (.indexOf form-str "if-not (")]
+    (cond
+     (= -1 idx-a idx-b) (s/replace form-str #"\s\(" "\n(")
+     (> idx-a idx-b) (str (.substr form-str 0 (+ idx-a 4))
+                          (inject-nl (.substr form-str (+ idx-a 4))))
+     :else (str (.substr form-str 0 (+ idx-b 8))
+                (inject-nl (.substr form-str (+ idx-b 8)))))))
 
 
-(defn replace-cmd [ed replace-fn]
-  (when-let [form-range (get-form-range ed)]
-    (let [start (:start form-range)
-          end (:end form-range)
-          candidate (editor/range ed start end)]
-      (when-let [res (replace-fn candidate)]
-        (editor/replace ed start end res))
-      (if (hash-prefixed? ed start)
+;; Silly simplistic...
+(defn format-form [form-str]
+  (-> form-str
+      inject-nl))
+
+
+(defn replace-cmd [ed replace-fn & {:keys [fmt]}]
+  (let [{:keys [start end form-str]} (u/get-form ed)]
+    (when form-str
+      (when-let [res (some-> form-str
+                             replace-fn
+                             (#(if fmt (format-form %) %)))]
+        (editor/replace ed start end res)
+        (let [{s1 :start s2 :end} (u/get-form ed (-> start (update-in [:ch] inc)))]
+          (editor/set-selection ed s1 s2)
+          (editor/indent-selection ed "smart")))
+      (if (u/hash-prefixed? ed start)
         (editor/move-cursor ed (update-in start [:ch] #(+ % 2)))
         (editor/move-cursor ed (update-in start [:ch] inc))))))
+
 
 
 
 (behavior ::cycle-if!
           :triggers #{:refactor.cycle-if!}
           :reaction (fn [ed]
-                      (replace-cmd ed cycle-if)))
+                      (replace-cmd ed cycle-if :fmt true)))
 
 (behavior ::cycle-col!
           :triggers #{:refactor.cycle-col!}

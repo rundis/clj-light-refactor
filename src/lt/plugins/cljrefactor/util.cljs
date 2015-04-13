@@ -61,6 +61,29 @@
           :end form-end})))))
 
 
+(defn hash-prefixed? [ed start]
+  (= (editor/range ed  start (update-in start [:ch] inc)) "#"))
+
+(defn set-form? [ed start]
+  (and (> (:ch start) 0)
+       (hash-prefixed? ed (update-in start [:ch] dec))))
+
+(defn get-form
+  ([ed] (get-form ed (editor/->cursor ed)))
+  ([ed pos]
+   (let [[start end] (pe/form-boundary ed pos)
+         end (update-in end [:ch] inc)]
+     (when (and start end)
+       (if (set-form? ed start)
+         {:form-str (editor/range ed start end)
+          :start (update-in start [:ch] dec)
+          :end end}
+         {:form-str (editor/range ed start end)
+          :start start
+          :end end})))))
+
+
+
 (defn multiple-cursors? [ed]
   (let [cm-ed (editor/->cm-ed ed)]
     (> (count (js->clj (.getSelections cm-ed))) 1)))
