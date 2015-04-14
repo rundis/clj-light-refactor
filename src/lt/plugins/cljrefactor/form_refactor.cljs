@@ -96,12 +96,13 @@
                              replace-fn
                              (#(if fmt (format-form %) %)))]
         (editor/replace ed start end res)
-        (let [{s1 :start s2 :end} (u/get-form ed (-> start (update-in [:ch] inc)))]
+        (let [p (if (u/set-form? res)
+                  (-> start (update-in [:ch] #(+ % 2)))
+                  (-> start (update-in [:ch] inc)))
+              {s1 :start s2 :end} (u/get-form ed p)]
           (editor/set-selection ed s1 s2)
-          (editor/indent-selection ed "smart")))
-      (if (u/hash-prefixed? ed start)
-        (editor/move-cursor ed (update-in start [:ch] #(+ % 2)))
-        (editor/move-cursor ed (update-in start [:ch] inc))))))
+          (editor/indent-selection ed "smart")
+          (editor/move-cursor ed p))))))
 
 
 

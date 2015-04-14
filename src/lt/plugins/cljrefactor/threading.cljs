@@ -177,6 +177,7 @@
       (editor/move-cursor ed (-> start (update-in [:ch] inc))))))
 
 
+
 (behavior ::thread-fully!
           :triggers #{:refactor.thread-fully!}
           :reaction (fn [ed]

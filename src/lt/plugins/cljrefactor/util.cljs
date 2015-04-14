@@ -64,9 +64,15 @@
 (defn hash-prefixed? [ed start]
   (= (editor/range ed  start (update-in start [:ch] inc)) "#"))
 
-(defn set-form? [ed start]
-  (and (> (:ch start) 0)
-       (hash-prefixed? ed (update-in start [:ch] dec))))
+
+
+
+(defn set-form?
+  ([form-str]
+   (= (.indexOf form-str "#{") 0))
+  ([ed start]
+   (and (> (:ch start) 0)
+        (hash-prefixed? ed (update-in start [:ch] dec)))))
 
 (defn get-form
   ([ed] (get-form ed (editor/->cursor ed)))
@@ -75,7 +81,7 @@
          end (update-in end [:ch] inc)]
      (when (and start end)
        (if (set-form? ed start)
-         {:form-str (editor/range ed start end)
+         {:form-str (editor/range ed (update-in start [:ch] dec) end)
           :start (update-in start [:ch] dec)
           :end end}
          {:form-str (editor/range ed start end)
