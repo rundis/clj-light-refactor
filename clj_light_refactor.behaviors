@@ -1,4 +1,4 @@
-[[:app :lt.objs.plugins/load-js ["clj-light-refactor_compiled.js"]]
+[[:app :lt.objs.plugins/load-js ["react.min.js" "clj-light-refactor_compiled.js"]]
  [:app :lt.objs.plugins/load-css "css/refactor.css"]
 
 
@@ -87,4 +87,27 @@
  [:refactor.usages :lt.plugins.cljrefactor.usages/move-next]
  [:refactor.usages :lt.plugins.cljrefactor.usages/move-prev]
  [:refactor.usages :lt.plugins.cljrefactor.usages/open-active]
- [:refactor.usages :lt.plugins.cljrefactor.usages/clear!]]
+ [:refactor.usages :lt.plugins.cljrefactor.usages/clear!]
+
+ ;; Namespace browser
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/escape!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/clear!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/focus!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/move-up!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/move-down!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/update-ns-list!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/select!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/search!]
+ [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/set-nsbrowser-filters
+  ["^cider\\.|^deps\\.|^refactor-nrepl\\.|^ibdknox\\.|^lighttable\\.nrepl"]]
+
+ [:editor.clj :lt.plugins.cljrefactor.nsbrowser/list-ns]
+ [:editor.clj :lt.plugins.cljrefactor.nsbrowser/list-ns-res]
+ [:editor.clj :lt.plugins.cljrefactor.nsbrowser/list-ns-vars]
+ [:editor.clj :lt.plugins.cljrefactor.nsbrowser/list-ns-vars-res]
+
+ ;; jump to resource
+ [:editor.clj :lt.plugins.cljrefactor.resource/find-resource]
+ [:editor.clj :lt.plugins.cljrefactor.resource/find-resource.res]
+
+ ]

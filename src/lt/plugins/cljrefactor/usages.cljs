@@ -140,16 +140,20 @@
 (behavior ::find-symbol.start
           :triggers #{:refactor.find-symbol}
           :reaction (fn [this ed token]
-                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))]
-                        (tabs/add-or-focus! refactor-usages)
-                        (object/raise this :clear!)
-                        (object/update! this [:search-for] (fn [_]
-                                                             {:symbol (:string token)
-                                                              :namespace ns}))
-                        (object/raise ed
-                                      :eval.custom
-                                      (find-symbol-op ed (:string token))
-                                      {:result-type :refactor.find-symbol :verbatim true :symbol (:string token)}))))
+                      (let [ns (or (-> @ed :info :ns) (-> @ed :info :path))
+                            sym (:string token)]
+                        (when (= (.indexOf sym "/") -1)
+                         (tabs/add-or-focus! refactor-usages)
+                         (object/raise this :clear!)
+                         (object/update! this [:search-for] (fn [_]
+                                                              {:symbol sym
+                                                               :namespace ns}))
+                         (object/raise ed
+                                       :eval.custom
+                                       (find-symbol-op ed sym)
+                                       {:result-type :refactor.find-symbol
+                                        :verbatim true
+                                        :symbol sym})))))
 
 
 

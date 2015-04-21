@@ -141,6 +141,8 @@ Allows you to cycle between collection types. Works for both Clojure and Clojure
 
 
 
+== Clojure addons
+
 === Show definition
 Shows definition for a symbol inline. Handy when you just want to have a quick peak
 at the definiton of symbol without leaving the context of the editor (and position) you are currently are in.
@@ -164,7 +166,7 @@ extensive refactoring support, but the flipside is manual setup and increased co
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-:plugins [[refactor-nrepl "1.0.1"]
+:plugins [[refactor-nrepl "1.0.4-SNAPSHOT"]
           [cider/cider-nrepl "0.9.0-SNAPSHOT"]]
 ----
 
@@ -322,6 +324,43 @@ Textual autocompletion is turned of and so is the default autocompleter (for clo
 ----
 
 
+=== Namespace browser
+Allow you to browse your projects namespaces and public symbols. The feature depends on CIDER middleware.
+
+
+.Usage
+* With focus in a clojure editor for you project, invoke the command **Clojure refactor: Show ns browser**
+* Filter ns by typing (starting with or cta for for example clojure.tools.analyzer)
+* Use up/down arrows to change selection
+* WHen you press enter for a selected ns, a list of symbols for that ns is shown
+* Filter, move and if you find the symbol you were looking for select it
+* You will jump to that symbol
+* Pressing esc when in a symbol list will take you back to the ns-list, esc on the ns list closes the sidebar
+
+
+WARNING: With the current version of the cider-nrepl dep you might find that namespaces for you project
+aren't initially shown. If you are using the http://thinkrelevance.com/blog/2013/06/04/clojure-workflow-reloaded[reloaded] workflow
+that's just a matter of doing a refresh. If not, try invoking find usages which should load all your ns's.
+
+It's also worth mentioning, that you really shouldn't be switching to a non clojure editor (or a clojure editor not in your project),
+whilst having the ns-browser open and then try to select a ns. It will croak. It uses the currently active editor for code eval.
+
+
+==== Exclusions
+You can exclude namespaces from being shown in namespace browser by configuring the ns browser.
+In your user-behaviors configure exclusion by customizing this behavior:
+
+[source,clojure]
+----
+  ;; Exclusions are specified as a vector of regex'es.
+  ;;Please note that you need to double-escape because I use re-pattern on the reg-ex strings
+  [:clojure.nsbrowser :lt.plugins.cljrefactor.nsbrowser/set-nsbrowser-filters
+    ["^cider\\.|^deps\\.|^refactor-nrepl\\.|^ibdknox\\.|^lighttable\\.nrepl"]]
+----
+
+
+
+
 === Test support
 With the cider-nrepl middleware you can now run clojure tests from within Light Table.
 
@@ -369,6 +408,14 @@ image::macroexpand.png[]
 ** To expand all the way use the command **Clojure refactor: Macroexpand all**
 
 
+=== Jump to resource
+How about navigating directly to a resource file from a clojure file that refers to it ? Cider-nrepl to the rescue.
+
+
+.Usage
+* Position cursor inside the resource reference and invoke the command **Clojure refactor: Jump to resource**
+* If it finds the resource with the given path on the classpath the file is opened
+
 
 == Credits
 * https://github.com/clojure-emacs/refactor-nrepl[refactor-nrepl] - nREPL middleware to support refactorings in an editor agnostic way.
@@ -378,6 +425,13 @@ image::macroexpand.png[]
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
+* 0.1.5
+** New feature: Jump to resource
+** New feature: Namespace browser with jump to symbol support
+** Improvement: Cleaner invocation of middleware ops
+* 0.1.4
+** Improvement: Better formatting when using if and threading refactoring
+** Bug: Fixed bugs in if refactoring
 * 0.1.3 Bugfixes:
 ** Rename symbol bypasses history check now
 ** Changed from .contains to .indexOf for strings as atom-shell branch of LT wasn't to fond of .contains

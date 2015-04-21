@@ -100,11 +100,6 @@
                                         :eval.custom
                                         (artifact-list)
                                         {:result-type :refactor.artifacts :verbatim true})))))
-;; (when-let [ar (first
-;;             (object/by-tag :refactor.artifacts))]
-;;   (println (::artifacts @ar))
-;;   (swap! ar assoc ::fetching-deps false)
-;;   (swap! ar assoc :artifacts nil))
 
 (behavior ::artifact-hints
           :triggers #{:hints+}

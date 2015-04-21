@@ -15,7 +15,6 @@
 
 
 
-
 (behavior ::clj-refactor.maybe-project
           :description "Add tag to indicate that the file is a lein project file"
           :triggers #{:active}

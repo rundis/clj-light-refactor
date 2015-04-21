@@ -30,3 +30,10 @@ div.refactor-select select {
 
 /* prompt form */
 .CodeMirror-hints.refactor-prompt input { display:inline; }
+
+
+#nsbrowser-wrapper {background: inherit;}
+
+#nsbrowser-wrapper input {width: 100%;}
+#nsbrowser-wrapper .filter-list > ul.nsselection {top: 65px;}
+#nsbrowser-wrapper div.nstitle {font-Weight: bold; font-size: 14px; text-align: center; position:relative;}

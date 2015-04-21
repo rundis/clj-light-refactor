@@ -3,35 +3,28 @@
 
 
 
+
 (defn create-op [params]
   (str
    "(do
      (require 'refactor-nrepl.client)
      (require 'clojure.tools.nrepl)
-     (def tr (refactor-nrepl.client/connect))
      (clojure.tools.nrepl/message
-       (clojure.tools.nrepl/client tr 10000)\n"
+       (clojure.tools.nrepl/client (refactor-nrepl.client/connect) 10000)\n"
        (pr-str params) "))"))
 
-(defn ed->ns-def [ed]
-  (let [filename (-> @ed :info :path)
-        ns (-> @ed :info :ns)]
-    (str "(def z-ns "
-         (if ns
-           (str "'" ns)
-           (str "(lighttable.nrepl.eval/file->ns \"" filename "\")")) ")\n")))
 
 (defn create-ns-op [ed params]
-  (str
-   "(do
+  (let [filename (-> @ed :info :path)]
+    (str
+     "(do
      (require 'refactor-nrepl.client)
      (require 'clojure.tools.nrepl)
      (require 'lighttable.nrepl.eval)\n"
-     (ed->ns-def ed)
-     "(def tr (refactor-nrepl.client/connect))
-     (clojure.tools.nrepl/message
-       (clojure.tools.nrepl/client tr 10000)\n"
-       (str (s/join "" (drop-last (pr-str params))) " :ns z-ns}") "))"))
+     "(clojure.tools.nrepl/message
+     (clojure.tools.nrepl/client (refactor-nrepl.client/connect) 10000)\n"
+     (str (s/join "" (drop-last (pr-str params))) " :ns "
+          "(lighttable.nrepl.eval/file->ns \"" filename "\")}") "))")))
 
 
 (defn extract-result-group [res k]
