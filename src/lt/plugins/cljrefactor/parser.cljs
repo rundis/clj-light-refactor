@@ -3,6 +3,8 @@
             [cljs.reader :as rdr]
             [clojure.string :as s]))
 
+
+
 ;; TODO: read-string doesn't handle nearly all of clojure !
 (defn str->seq-zip [form-str]
   (rdr/register-tag-parser! "afn" (fn [x] (str "___#" x "___"))) ;; hack to escape anonymous functions
@@ -42,6 +44,9 @@
        v
        (when (= (-> root z/down z/node pr-str) "with-test")
          (do-find-def (-> root z/down z/right)))))))
+
+
+
 
 
 

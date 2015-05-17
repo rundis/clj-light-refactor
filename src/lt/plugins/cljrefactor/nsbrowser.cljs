@@ -280,6 +280,9 @@
                                                (map #(hash-map :name %)))))))))
 
 
+;; (doseq [obj (object/by-tag :nrepl.client)]
+;;   (println obj))
+
 
 (behavior ::list-ns
           :triggers #{:list-ns}
