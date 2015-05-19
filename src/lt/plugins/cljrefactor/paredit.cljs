@@ -1,7 +1,7 @@
 (ns lt.plugins.cljrefactor.paredit
   (:require [rewrite-clj.paredit :as pe]
             [rewrite-clj.zip :as z]
-            [rewrite-clj.zip.findz :as f]
+            [rewrite-clj.zip.whitespace :as ws]
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
@@ -10,29 +10,39 @@
   (:require-macros [lt.macros :refer [behavior]]))
 
 
-(defn- ->zipper-pos [pos form]
-  {:row (inc (- (:line pos) (-> form :start :line)))
-   :col (-> (inc (:ch pos)))})
 
-(defn ->pos [z-pos form]
-  {:ch (dec (:col z-pos))
+
+(defn- ->zipper-pos-start [pos form]
+  (let [row (inc (- (:line pos) (-> form :start :line)))]
+    {:row row
+     :col (inc (- (:ch pos)
+                  (if (= 1 row) (-> form :start :ch) 0)))}))
+
+(defn ->start-pos [z-pos form]
+  {:ch (+ (dec (:col z-pos))
+          (if (= 1 (:row z-pos)) (-> form :start :ch) 0))
    :line (+ (-> form :start :line) (dec (:row z-pos)))})
+
+(defn ->end-pos [z-pos form]
+  {:ch (+ (dec (:end-col z-pos))
+          (if (= 1 (:end-row z-pos)) (-> form :start :ch) 0))
+   :line (+ (-> form :start :line) (dec (:end-row z-pos)))})
 
 
 (defn positioned-zip [pos form]
   (-> (:form-str form)
       z/of-string
-      (z/find-last-by-pos (->zipper-pos pos form) (constantly true))))
+      (z/find-last-by-pos (->zipper-pos-start pos form) (constantly true))))
 
+(defn format-keep-pos [ed]
+  (let [pos (editor/->cursor ed)]
+    (when-let [form (u/get-top-level-form ed pos)]
+      (let [hist (editor/get-history ed)]
+        (editor/set-selection ed (:start form) (:end form))
+        (editor/set-history ed hist))
+      (editor/indent-selection ed "smart")
+      (editor/move-cursor ed pos))))
 
-(defn whitespace? [ch]
-  (some #{\space \newline \tab} right-char))
-
-(defn- end-pair? [ch]
-  (some #{\) \} \]} ch))
-
-(defn- start-pair? [ch]
-  (some #{\( \[ \{} ch))
 
 
 (defn- maybe-col-adjust-cursor [pos opts]
@@ -44,50 +54,44 @@
   (let [left-ch (editor/get-char ed -1)
         right-ch (editor/get-char ed 1)]
     (if (and (:dec-pos-when-last-before-seq opts)
-             (end-pair? right-ch)
-             (not (start-pair? left-ch)))
+             (u/end-pair? right-ch)
+             (not (u/start-pair? left-ch)))
       (update-in pos [:ch] dec)
       pos)))
 
 (defn- maybe-add-space [ed expr]
   (let [right-char (editor/get-char ed 1)]
     (if (and (not (empty? right-char))
-             (not (whitespace? right-char))
-             (not (end-pair? right-char)))
+             (not (u/whitespace? right-char))
+             (not (u/end-pair? right-char)))
       (str expr " ")
       expr)))
-
 
 (defn paredit-cmd [ed f opts]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
         zloc (positioned-zip (maybe-dec-pos ed pos opts) form)]
-
     (when zloc
       (editor/replace ed (:start form) (:end form) (-> zloc f z/root-string))
-      (editor/move-cursor ed (maybe-col-adjust-cursor pos opts)))))
+      (editor/move-cursor ed (maybe-col-adjust-cursor pos opts))
+      (format-keep-pos ed))))
 
 
 
 (defn position-after-move-prev [zloc pos form]
   (if-let [prev (z/prev zloc)]
     (if-not (some-> zloc z/left z/seq?)
-      (->pos (-> prev z/node meta) form)
-      (->pos (-> prev
-                 z/node
-                 meta
-                 ((fn [bounds]
-                    {:row (:end-row bounds)
-                     :col (inc (:end-col bounds))})))
-             form))
+      (->start-pos (-> prev z/node meta) form)
+      (->end-pos (-> prev z/node meta (update-in [:end-col] inc)) form))
     pos))
+
 
 (defn move-to-previous* [ed]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
         zloc (positioned-zip pos form)]
-    (when zloc
-      (editor/replace ed (:start form) (:end form) (-> zloc pe/move-to-prev z/root-string))
+    (when-let [res (some-> zloc pe/move-to-prev z/root-string)]
+      (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed (position-after-move-prev zloc pos form)))))
 
 
@@ -104,7 +108,7 @@
         form (u/get-top-level-form ed)]
     (when-let [res (some-> (:form-str form)
                            z/of-string
-                           (pe/kill-at-pos (->zipper-pos pos form))
+                           (pe/kill-at-pos (->zipper-pos-start pos form))
                            z/root-string)]
       (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed pos))))
@@ -122,25 +126,26 @@
             z/node
             meta
             (#(if (= :left dir)
-                (->pos % form)
-                (->pos {:row (:end-row %)
-                        :col (:end-col %)} form)))
+                (->start-pos % form)
+                (->end-pos % form)))
             (#(editor/move-cursor ed %)))))
 
+
+
 (defn paredit-select [ed]
-  (let [pos (if-not (editor/selection? ed)
-              (editor/->cursor ed)
-              (-> (editor/selection-bounds ed) :from))
-        form (u/get-top-level-form ed)
+  (let [pos (editor/->cursor ed)
+        form  (u/get-top-level-form ed)
         zloc (positioned-zip pos form)]
     (when-let [bounds (some-> zloc
-                              (#(if (editor/selection? ed) (z/up %) %))
+                              (#(if (ws/whitespace? %) (z/up %) %))
                               z/node
                               meta)]
+
+      ;; TODO: When comment adjust for newline !
       (editor/set-selection ed
-                            (->pos bounds form)
-                            (->pos {:row (:end-row bounds)
-                                    :col (:end-col bounds)} form)))))
+                            (->start-pos bounds form)
+                            (->end-pos bounds form)))))
+
 
 (defn- ->pair [t pos]
   (let [np (fn [n] (update-in pos [:ch] #(+ % n)))]
@@ -432,7 +437,6 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.move-left!)))})
-
 
 ;; Misc
 (cmd/command {:command :pared.select

@@ -5,30 +5,6 @@
             [clojure.string :as s]))
 
 
-;; FROM PAREDIT MASTER
-(defn seek-top [ed loc]
-  (let [pars (re-pattern "\\(|\\{|\\[")]
-    (loop [loc loc]
-      (let [cur (second (pe/scan {:ed ed
-                               :loc loc
-                               :dir :left
-                               :regex pars
-                               :skip pe/in-string?}))
-            adj (editor/adjust-loc cur -1)]
-        (if (or (zero? (:ch cur))
-                (nil? (:ch cur)))
-          cur
-          (recur adj))))))
-
-(defn seek-bottom [ed loc]
-  (let [adj->top (fn [pos] (editor/adjust-loc pos 1))
-        start (seek-top ed loc)
-        end (second (pe/form-boundary ed (adj->top start) nil))]
-    (adj->top end)))
-
-
-
-
 
 (defn replace-token [s bounds neue]
   (let [lines (vec (s/split s #"\n"))]
@@ -47,24 +23,8 @@
                       (s/split s #"\n"))))
 
 
-
-(defn get-top-level-form
-  ([ed] (get-top-level-form ed (editor/->cursor ed)))
-  ([ed pos]
-   (let [line (:line pos)
-         form-start (seek-top ed pos)
-         form-end (seek-bottom ed (update-in form-start [:ch] inc))]
-     (when-not (> line (:line form-end))
-       (when-let [sel (editor/range ed form-start form-end)]
-         {:form-str sel
-          :start form-start
-          :end form-end})))))
-
-
 (defn hash-prefixed? [ed start]
   (= (editor/range ed  start (update-in start [:ch] inc)) "#"))
-
-
 
 
 (defn set-form?
@@ -95,3 +55,131 @@
     (> (count (js->clj (.getSelections cm-ed))) 1)))
 
 
+
+;; ==================================
+;; Improved form selection utils
+;; ==================================
+
+(defn whitespace? [ch]
+  (some #{\space \newline \tab} right-char))
+
+(defn- end-pair? [ch]
+  (some #{\) \} \]} ch))
+
+(defn- start-pair? [ch]
+  (some #{\( \[ \{} ch))
+
+
+(def opposites {")" "("
+                "(" ")"
+                "{" "}"
+                "}" "{"
+                "[" "]"
+                "]" "["})
+
+
+(defn get-ch [ed loc]
+  (get (editor/line ed (:line loc)) (:ch loc)))
+
+(defn end-loc [ed]
+  (let [last-line (editor/last-line ed)]
+    {:line last-line
+     :ch (max 0 (dec (editor/line-length ed last-line)))}))
+
+(defn end-loc? [ed loc]
+  (= (end-loc ed) loc))
+
+(defn string|comment? [ed loc]
+  (let [t (editor/->token-type ed loc)
+        str-contains? #(> (.indexOf %1 %2) -1)
+        ch (get-ch ed loc)
+        left-ch (get-ch ed (editor/adjust-loc loc -1))
+        right-ch (get-ch ed (editor/adjust-loc loc 1))]
+    (when t
+      (cond
+       (str-contains? t "comment-form") false
+       (str-contains? t "comment") true
+       (and (str-contains? t "string")
+            (not
+             (and (end-pair? ch) (= \" left-ch) (not (= "string"
+                                                        (editor/->token-type ed (editor/adjust-loc loc 1))))))) true
+       :else false))))
+
+
+(defn move-loc-line [ed loc dir]
+  (when loc
+    (let [neue (update-in loc [:line] + (if (= dir :up) -1 1))]
+      (cond
+       (< (:line neue) 0) nil
+       (> (:line neue) (editor/last-line ed)) nil
+       :else (assoc neue :ch (if (= dir :up)
+                               (max (dec (editor/line-length ed (:line neue))) 0)
+                               0))))))
+
+(defn move-loc [ed dir loc]
+  (when loc
+    (let [len (editor/line-length ed (:line loc))
+          neue (editor/adjust-loc loc (if (= dir :left) -1 1))]
+      (cond
+       (< (:ch neue) 0) (move-loc-line ed loc :up)
+       (>= (:ch neue) len) (move-loc-line ed loc :down)
+       :else neue))))
+
+(defn peek-ch [ed dir loc]
+  (when-let [next-loc (move-loc ed dir loc)]
+    (get-ch ed next-loc)))
+
+
+(defn loc-next-end-pair [ed loc level]
+  (let [ch (some->> loc (get-ch ed))]
+    (cond
+     (and (nil? ch) (peek-ch ed :right loc)) (loc-next-end-pair ed (move-loc ed :right loc) level)
+     (nil? ch) nil
+     (string|comment? ed loc) (loc-next-end-pair ed (move-loc ed :right loc) level)
+     (and (end-pair? ch) (= 0 level)) loc
+     (start-pair? ch) (loc-next-end-pair ed (move-loc ed :right loc) (inc level))
+     (end-pair? ch) (loc-next-end-pair ed (move-loc ed :right loc) (dec level))
+     :else (loc-next-end-pair ed (move-loc ed :right loc) level))))
+
+
+
+(defn loc-next-matching-start-pair [ed loc pair-ch level]
+  (let [ch (some->> loc (get-ch ed))]
+    (cond
+     (nil? ch) nil
+     (string|comment? ed loc) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch level)
+     (and (= ch pair-ch) (= 0 level)) loc
+     (= ch (get opposites pair-ch)) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch (inc level))
+     (= ch pair-ch) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch (dec level))
+     :else (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch level))))
+
+
+
+(defn get-bounds-matching [ed loc]
+  (when-let [loc-next-end (loc-next-end-pair ed loc 0)]
+    (when-let [loc-next-start (loc-next-matching-start-pair ed
+                                                            (move-loc ed :left loc-next-end)
+                                                            (get opposites (get-ch ed loc-next-end))
+                                                            0)]
+      [loc-next-start loc-next-end])))
+
+(defn get-next-bounds-matching [ed [start end]]
+  (when-let [loc-next-end (loc-next-end-pair ed (move-loc ed :right end) 0)]
+    (when-let [loc-next-start (loc-next-matching-start-pair ed
+                                                            (move-loc ed :left start)
+                                                            (get opposites (get-ch ed loc-next-end))
+                                                            0)]
+      [loc-next-start loc-next-end])))
+
+
+(defn get-top-level-form
+  ([ed] (get-top-level-form ed (editor/->cursor ed)))
+  ([ed loc]
+   (when-let [[start end] (some->> (get-bounds-matching ed loc)
+                                   (iterate (partial get-next-bounds-matching ed))
+                                   (take-while identity)
+                                   last)]
+
+     {:form-str (editor/range ed start (update-in end [:ch] inc))
+      :start start
+      :end (update-in end [:ch] inc)})))
