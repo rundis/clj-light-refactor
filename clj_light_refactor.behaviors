@@ -136,6 +136,9 @@
  [:editor.cljs :lt.plugins.cljrefactor.paredit/move-to-previous!]
 
 
+ [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-forward-fully!]
+ [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-backward-fully!]
+
  ; movements
  [:editor.clj :lt.plugins.cljrefactor.paredit/move-next!]
  [:editor.cljs :lt.plugins.cljrefactor.paredit/move-next!]
@@ -151,6 +154,8 @@
  [:editor.cljs :lt.plugins.cljrefactor.paredit/move-right!]
  [:editor.clj :lt.plugins.cljrefactor.paredit/move-left!]
  [:editor.cljs :lt.plugins.cljrefactor.paredit/move-left!]
+
+
 
  ; Misc
  [:editor.clj :lt.plugins.cljrefactor.paredit/select!]

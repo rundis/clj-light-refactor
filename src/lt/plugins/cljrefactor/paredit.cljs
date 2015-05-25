@@ -2,6 +2,7 @@
   (:require [rewrite-clj.paredit :as pe]
             [rewrite-clj.zip :as z]
             [rewrite-clj.zip.whitespace :as ws]
+            [clojure.zip :as zz]
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
@@ -10,6 +11,13 @@
   (:require-macros [lt.macros :refer [behavior]]))
 
 
+
+(defn- zpos-gt? [l1 l2]
+  (cond
+   (> (:row l1) (:row l2)) true
+   (> (:row l2) (:row l1)) false
+   (> (:col l1) (:col l2)) true
+   :else false))
 
 
 (defn- ->zipper-pos-start [pos form]
@@ -30,9 +38,15 @@
 
 
 (defn positioned-zip [pos form]
-  (-> (:form-str form)
-      z/of-string
-      (z/find-last-by-pos (->zipper-pos-start pos form) (constantly true))))
+  (try
+    (-> (:form-str form)
+        z/of-string
+        (z/find-last-by-pos (->zipper-pos-start pos form) (constantly true)))
+    (catch :default e
+      )))
+
+
+
 
 (defn format-keep-pos [ed]
   (let [pos (editor/->cursor ed)]
@@ -50,14 +64,6 @@
     (update-in pos [:ch] #(+ % col-adjust))
     pos))
 
-(defn- maybe-dec-pos [ed pos opts]
-  (let [left-ch (editor/get-char ed -1)
-        right-ch (editor/get-char ed 1)]
-    (if (and (:dec-pos-when-last-before-seq opts)
-             (u/end-pair? right-ch)
-             (not (u/start-pair? left-ch)))
-      (update-in pos [:ch] dec)
-      pos)))
 
 (defn- maybe-add-space [ed expr]
   (let [right-char (editor/get-char ed 1)]
@@ -67,14 +73,31 @@
       (str expr " ")
       expr)))
 
+(defn- in-seq-past-rightmost? [zloc pos form]
+  (let [bounds-rightmost (some-> zloc z/down zz/rightmost z/node meta)]
+    (if (and zloc
+               bounds-rightmost
+               (zpos-gt? (->zipper-pos-start pos form) bounds-rightmost))
+      true
+      false)))
+
+
+(defn- maybe-reposition-rightmost [zloc pos form]
+  (if (in-seq-past-rightmost? zloc pos form)
+    (-> zloc z/down z/rightmost)
+    zloc))
+
+
+
 (defn paredit-cmd [ed f opts]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
-        zloc (positioned-zip (maybe-dec-pos ed pos opts) form)]
+        zloc (positioned-zip pos form)]
     (when zloc
-      (editor/replace ed (:start form) (:end form) (-> zloc f z/root-string))
+      (editor/replace ed (:start form) (:end form) (-> zloc (maybe-reposition-rightmost pos form)  f z/root-string))
       (editor/move-cursor ed (maybe-col-adjust-cursor pos opts))
       (format-keep-pos ed))))
+
 
 
 
@@ -90,7 +113,7 @@
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
         zloc (positioned-zip pos form)]
-    (when-let [res (some-> zloc pe/move-to-prev z/root-string)]
+    (when-let [res (some-> zloc (maybe-reposition-rightmost pos form) pe/move-to-prev z/root-string)]
       (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed (position-after-move-prev zloc pos form)))))
 
@@ -98,10 +121,11 @@
 (defn splice* [ed]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
-        zloc (some-> (positioned-zip pos form) z/up)]
+        zloc (some-> (positioned-zip pos form) (maybe-reposition-rightmost pos form)  z/up)]
     (when zloc
       (editor/replace ed (:start form) (:end form) (-> zloc pe/splice z/root-string))
       (editor/move-cursor ed pos))))
+
 
 (defn kill* [ed]
   (let [pos (editor/->cursor ed)
@@ -114,14 +138,12 @@
       (editor/move-cursor ed pos))))
 
 
-
-
-
 (defn paredit-navigate [ed f & {:keys [dir] :or {dir :left}}]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
         zloc (positioned-zip pos form)]
     (some-> (positioned-zip pos form)
+            (maybe-reposition-rightmost pos form)
             f
             z/node
             meta
@@ -129,6 +151,9 @@
                 (->start-pos % form)
                 (->end-pos % form)))
             (#(editor/move-cursor ed %)))))
+
+
+
 
 
 
@@ -151,7 +176,7 @@
   (let [np (fn [n] (update-in pos [:ch] #(+ % n)))]
     (case t
       :list         ["()" (np 1)]
-      :vector       ["[]" (np 1)]
+      :vector       ["[]" (np  1)]
       :set          ["#{}" (np 2)]
       :map          ["{}" (np 1)]
       :fn           ["#()" (np 2)]
@@ -179,10 +204,20 @@
           :reaction (fn [ed opts]
                       (paredit-cmd ed pe/slurp-forward {:dec-pos-when-last-before-seq true})))
 
+(behavior ::slurp-forward-fully!
+          :triggers #{:pared.slurp-forward-fully!}
+          :reaction (fn [ed opts]
+                      (paredit-cmd ed pe/slurp-forward-fully {:dec-pos-when-last-before-seq true})))
+
 (behavior ::slurp-backward!
           :triggers #{:pared.slurp-backward!}
           :reaction (fn [ed opts]
-                      (paredit-cmd ed pe/slurp-backward opts)))
+                      (paredit-cmd ed pe/slurp-backward {:dec-pos-when-last-before-seq true})))
+
+(behavior ::slurp-backward-fully!
+          :triggers #{:pared.slurp-backward-fully!}
+          :reaction (fn [ed opts]
+                      (paredit-cmd ed pe/slurp-backward-fully {:dec-pos-when-last-before-seq true})))
 
 (behavior ::barf-forward!
           :triggers #{:pared.barf-forward!}
@@ -192,12 +227,16 @@
 (behavior ::barf-backward!
           :triggers #{:pared.barf-backward!}
           :reaction (fn [ed opts]
-                      (paredit-cmd ed pe/barf-backward opts)))
+                      (paredit-cmd ed pe/barf-backward {:dec-pos-when-last-before-seq true})))
 
 (behavior ::kill!
           :triggers #{:pared.kill!}
           :reaction (fn [ed opts]
                       (kill* ed)))
+
+
+(1 2 3 [4 5
+        ])
 
 
 
@@ -270,6 +309,10 @@
 
 
 
+
+
+
+
 ;; ================================
 ;; Commands
 ;; ================================
@@ -317,11 +360,23 @@
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.slurp-forward! {})))})
 
+(cmd/command {:command :pared.slurp-forward-fully
+              :desc "Clojure ParEd: Slurp forward fully"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.slurp-forward-fully! {})))})
+
 (cmd/command {:command :pared.slurp-backward
               :desc "Clojure ParEd: Slurp backward"
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.slurp-backward! {})))})
+
+(cmd/command {:command :pared.slurp-backward-fully
+              :desc "Clojure ParEd: Slurp backward fully"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.slurp-backward-fully! {})))})
 
 (cmd/command {:command :pared.barf-forward
               :desc "Clojure ParEd: Barf forward"
@@ -444,3 +499,7 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.select!)))})
+
+
+
+

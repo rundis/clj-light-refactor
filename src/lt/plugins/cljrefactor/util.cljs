@@ -172,14 +172,21 @@
       [loc-next-start loc-next-end])))
 
 
+
+
 (defn get-top-level-form
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed loc]
-   (when-let [[start end] (some->> (get-bounds-matching ed loc)
+   (if-let [[start end] (some->> (get-bounds-matching ed loc)
                                    (iterate (partial get-next-bounds-matching ed))
                                    (take-while identity)
                                    last)]
 
      {:form-str (editor/range ed start (update-in end [:ch] inc))
       :start start
-      :end (update-in end [:ch] inc)})))
+      :end (update-in end [:ch] inc)}
+     (let [line (:line loc)
+           line-str (editor/line ed (:line loc))]
+       {:form-str line-str
+        :start {:line line :ch 0}
+        :end {:line line :ch (count line-str)}}))))
