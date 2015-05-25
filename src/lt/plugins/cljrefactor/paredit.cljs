@@ -11,7 +11,6 @@
   (:require-macros [lt.macros :refer [behavior]]))
 
 
-
 (defn- zpos-gt? [l1 l2]
   (cond
    (> (:row l1) (:row l2)) true
@@ -233,11 +232,6 @@
           :triggers #{:pared.kill!}
           :reaction (fn [ed opts]
                       (kill* ed)))
-
-
-(1 2 3 [4 5
-        ])
-
 
 
 
@@ -499,7 +493,3 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.select!)))})
-
-
-
-

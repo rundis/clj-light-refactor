@@ -1,5 +1,6 @@
 (ns lt.plugins.cljrefactor.util
   (:require [lt.objs.editor :as editor]
+            [lt.objs.console :as console]
             [lt.objs.command :as cmd]
             [lt.plugins.paredit :as pe]
             [clojure.string :as s]))
@@ -89,6 +90,11 @@
 (defn end-loc? [ed loc]
   (= (end-loc ed) loc))
 
+(defn start-loc? [ed loc]
+  (and (= 0 (:line loc))
+       (= 0 (:ch loc))))
+
+
 (defn string|comment? [ed loc]
   (let [t (editor/->token-type ed loc)
         str-contains? #(> (.indexOf %1 %2) -1)
@@ -131,27 +137,35 @@
 
 
 (defn loc-next-end-pair [ed loc level]
-  (let [ch (some->> loc (get-ch ed))]
-    (cond
-     (and (nil? ch) (peek-ch ed :right loc)) (loc-next-end-pair ed (move-loc ed :right loc) level)
-     (nil? ch) nil
-     (string|comment? ed loc) (loc-next-end-pair ed (move-loc ed :right loc) level)
-     (and (end-pair? ch) (= 0 level)) loc
-     (start-pair? ch) (loc-next-end-pair ed (move-loc ed :right loc) (inc level))
-     (end-pair? ch) (loc-next-end-pair ed (move-loc ed :right loc) (dec level))
-     :else (loc-next-end-pair ed (move-loc ed :right loc) level))))
+  (when loc
+    (let [ch (some->> loc (get-ch ed))
+          match? (and (end-pair? ch) (= 0 level))]
+
+      (cond
+       (and (end-loc? ed loc) (not match?)) nil
+       (and (nil? ch) (peek-ch ed :right loc)) (recur ed (move-loc ed :right loc) level)
+       (nil? ch) nil ;; TODO: Need to get rid of these to handle newline only lines in forms (dogslow without)
+       (string|comment? ed loc) (recur ed (move-loc ed :right loc) level)
+       match? loc
+       (start-pair? ch) (recur ed (move-loc ed :right loc) (inc level))
+       (end-pair? ch) (recur ed (move-loc ed :right loc) (dec level))
+       :else (recur ed (move-loc ed :right loc) level)))))
 
 
 
 (defn loc-next-matching-start-pair [ed loc pair-ch level]
-  (let [ch (some->> loc (get-ch ed))]
-    (cond
-     (nil? ch) nil
-     (string|comment? ed loc) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch level)
-     (and (= ch pair-ch) (= 0 level)) loc
-     (= ch (get opposites pair-ch)) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch (inc level))
-     (= ch pair-ch) (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch (dec level))
-     :else (loc-next-matching-start-pair ed (move-loc ed :left loc) pair-ch level))))
+  (when loc
+    (let [ch (some->> loc (get-ch ed))
+          match? (and (= ch pair-ch) (= 0 level))]
+      (cond
+       (and (start-loc? ed loc) (not match?)) nil
+       (and (nil? ch) (peek-ch ed :left loc)) (recur ed (move-loc ed :left loc) pair-ch level)
+       (nil? ch) nil ;; TODO: Need to get rid of these to handle newline only lines in forms (dogslow without)
+       (string|comment? ed loc) (recur ed (move-loc ed :left loc) pair-ch level)
+       match? loc
+       (= ch (get opposites pair-ch)) (recur ed (move-loc ed :left loc) pair-ch (inc level))
+       (= ch pair-ch) (recur ed (move-loc ed :left loc) pair-ch (dec level))
+       :else (recur ed (move-loc ed :left loc) pair-ch level)))))
 
 
 
@@ -163,15 +177,15 @@
                                                             0)]
       [loc-next-start loc-next-end])))
 
+
+
 (defn get-next-bounds-matching [ed [start end]]
   (when-let [loc-next-end (loc-next-end-pair ed (move-loc ed :right end) 0)]
-    (when-let [loc-next-start (loc-next-matching-start-pair ed
-                                                            (move-loc ed :left start)
-                                                            (get opposites (get-ch ed loc-next-end))
-                                                            0)]
-      [loc-next-start loc-next-end])))
-
-
+     (when-let [loc-next-start (loc-next-matching-start-pair ed
+                                                             (move-loc ed :left start)
+                                                             (get opposites (get-ch ed loc-next-end))
+                                                             0)]
+       [loc-next-start loc-next-end])))
 
 
 (defn get-top-level-form
