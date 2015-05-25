@@ -135,56 +135,72 @@
   (when-let [next-loc (move-loc ed dir loc)]
     (get-ch ed next-loc)))
 
-
-(defn loc-next-end-pair [ed loc level]
-  (when loc
-    (let [ch (some->> loc (get-ch ed))
-          match? (and (end-pair? ch) (= 0 level))]
-
-      (cond
-       (and (end-loc? ed loc) (not match?)) nil
-       (and (nil? ch) (peek-ch ed :right loc)) (recur ed (move-loc ed :right loc) level)
-       (nil? ch) nil ;; TODO: Need to get rid of these to handle newline only lines in forms (dogslow without)
-       (string|comment? ed loc) (recur ed (move-loc ed :right loc) level)
-       match? loc
-       (start-pair? ch) (recur ed (move-loc ed :right loc) (inc level))
-       (end-pair? ch) (recur ed (move-loc ed :right loc) (dec level))
-       :else (recur ed (move-loc ed :right loc) level)))))
+(defn within-range [[start end] cur]
+  (>= end (:line cur) start))
 
 
+(defn loc-next-end-pair [ed loc]
+  (let [search-range [(:line loc) (+ (:line loc) 100)]]
+    (loop [cur loc
+           line (editor/line ed (:line loc))
+           level 0]
+      (if (or (not cur)
+              (not line)
+              (not (within-range search-range cur)))
+        nil
+        (let [ch (get line (:ch cur))
+              next-loc (move-loc ed :right cur)
+              next-line (if (not= (:line cur) (:line next-loc))
+                          (editor/line ed (:line next-loc))
+                          line)]
+          (cond
+           (and (or (start-pair? ch) (end-pair? ch))
+                (string|comment? ed cur)) (recur next-loc next-line level)
+           (start-pair? ch) (recur next-loc next-line (inc level))
+           (and (end-pair? ch) (= 0 level)) cur
+           (end-pair? ch) (recur next-loc next-line (dec level))
+           :else (recur next-loc next-line level)))))))
 
-(defn loc-next-matching-start-pair [ed loc pair-ch level]
-  (when loc
-    (let [ch (some->> loc (get-ch ed))
-          match? (and (= ch pair-ch) (= 0 level))]
-      (cond
-       (and (start-loc? ed loc) (not match?)) nil
-       (and (nil? ch) (peek-ch ed :left loc)) (recur ed (move-loc ed :left loc) pair-ch level)
-       (nil? ch) nil ;; TODO: Need to get rid of these to handle newline only lines in forms (dogslow without)
-       (string|comment? ed loc) (recur ed (move-loc ed :left loc) pair-ch level)
-       match? loc
-       (= ch (get opposites pair-ch)) (recur ed (move-loc ed :left loc) pair-ch (inc level))
-       (= ch pair-ch) (recur ed (move-loc ed :left loc) pair-ch (dec level))
-       :else (recur ed (move-loc ed :left loc) pair-ch level)))))
 
+
+(defn loc-next-matching-start-pair [ed loc pair-ch]
+  (let [search-range [(- (:line loc) 100) (:line loc)]]
+    (loop [cur loc
+           line (editor/line ed (:line loc))
+           level 0]
+      (if (or (not cur)
+              (not line)
+              (not (within-range search-range cur)))
+        nil
+        (let [ch (get line (:ch cur))
+              next-loc (move-loc ed :left cur)
+              next-line (if (not= (:line cur) (:line next-loc))
+                          (editor/line ed (:line next-loc))
+                          line)]
+          (cond
+           (and (or (= ch (get opposites pair-ch))
+                    (= ch pair-ch))
+                (string|comment? ed cur)) (recur next-loc next-line level)
+           (= ch (get opposites pair-ch)) (recur next-loc next-line (inc level))
+           (and (= ch pair-ch) (= 0 level)) cur
+           (= ch pair-ch) (recur next-loc next-line (dec level))
+           :else (recur next-loc next-line level)))))))
 
 
 (defn get-bounds-matching [ed loc]
-  (when-let [loc-next-end (loc-next-end-pair ed loc 0)]
+  (when-let [loc-next-end (loc-next-end-pair ed loc)]
     (when-let [loc-next-start (loc-next-matching-start-pair ed
                                                             (move-loc ed :left loc-next-end)
-                                                            (get opposites (get-ch ed loc-next-end))
-                                                            0)]
+                                                            (get opposites (get-ch ed loc-next-end)))]
       [loc-next-start loc-next-end])))
 
 
 
 (defn get-next-bounds-matching [ed [start end]]
-  (when-let [loc-next-end (loc-next-end-pair ed (move-loc ed :right end) 0)]
+  (when-let [loc-next-end (loc-next-end-pair ed (move-loc ed :right end))]
      (when-let [loc-next-start (loc-next-matching-start-pair ed
                                                              (move-loc ed :left start)
-                                                             (get opposites (get-ch ed loc-next-end))
-                                                             0)]
+                                                             (get opposites (get-ch ed loc-next-end)))]
        [loc-next-start loc-next-end])))
 
 
@@ -192,9 +208,9 @@
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed loc]
    (if-let [[start end] (some->> (get-bounds-matching ed loc)
-                                   (iterate (partial get-next-bounds-matching ed))
-                                   (take-while identity)
-                                   last)]
+                                 (iterate (partial get-next-bounds-matching ed))
+                                 (take-while identity)
+                                 last)]
 
      {:form-str (editor/range ed start (update-in end [:ch] inc))
       :start start
