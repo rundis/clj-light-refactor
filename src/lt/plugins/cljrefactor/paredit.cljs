@@ -72,6 +72,7 @@
       (str expr " ")
       expr)))
 
+
 (defn- in-seq-past-rightmost? [zloc pos form]
   (let [bounds-rightmost (some-> zloc z/down zz/rightmost z/node meta)]
     (if (and zloc

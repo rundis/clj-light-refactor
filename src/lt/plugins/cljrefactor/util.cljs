@@ -24,6 +24,7 @@
                       (s/split s #"\n"))))
 
 
+
 (defn hash-prefixed? [ed start]
   (= (editor/range ed  start (update-in start [:ch] inc)) "#"))
 
@@ -61,6 +62,10 @@
 ;; Improved form selection utils
 ;; ==================================
 
+(defn whitespace? [ch]
+  (some #{\space \newline \tab} ch))
+
+
 
 (defn- end-pair? [ch]
   (some #{\) \} \]} ch))
@@ -78,131 +83,144 @@
 
 
 (defn get-ch [ed loc]
-  (get (editor/line ed (:line loc)) (:ch loc)))
+  (get (editor/line ed (or (aget loc "line") (:line loc))) (or (aget loc "ch") (:ch loc))))
 
+
+
+(defn adjust-loc [loc delta]
+  (js-obj "line" (aget loc "line") "ch" (+ (aget loc "ch") delta)))
 
 
 (defn string|comment? [ed loc]
   (let [t (editor/->token-type ed loc)
         str-contains? #(> (.indexOf %1 %2) -1)
         ch (get-ch ed loc)
-        left-ch (get-ch ed (editor/adjust-loc loc -1))
-        right-ch (get-ch ed (editor/adjust-loc loc 1))]
+        left-ch (get-ch ed (adjust-loc loc -1))
+        right-ch (get-ch ed (adjust-loc loc 1))]
     (when t
       (cond
        (str-contains? t "comment-form") false
        (str-contains? t "comment") true
        (and (str-contains? t "string")
             (not
-             (and (end-pair? ch) (= \" left-ch) (not (= "string" (editor/->token-type ed (editor/adjust-loc loc 1))))))) true
+             (and (end-pair? ch) (= \" left-ch) (not (= "string" (editor/->token-type ed (js->clj (adjust-loc loc 1)))))))) true
        :else false))))
 
 
 (defn move-loc-line [ed loc dir]
   (when loc
-    (let [neue (update-in loc [:line] + (if (= dir :up) -1 1))]
+    (let [neue (js-obj "line" (if (= dir :up)
+                                (dec (aget loc "line"))
+                                (inc (aget loc "line")))
+                       "ch" (aget loc "ch"))]
+
       (cond
-       (< (:line neue) 0) nil
-       (> (:line neue) (editor/last-line ed)) nil
-       :else (assoc neue :ch (if (= dir :up)
-                               (max (dec (editor/line-length ed (:line neue))) 0)
+       (< (aget neue "line") 0) nil
+       (> (aget neue "line") (editor/last-line ed)) nil
+       :else (js-obj "line" (aget neue "line")
+                     "ch" (if (= dir :up)
+                               (max (dec (editor/line-length ed (aget neue "line"))) 0)
                                0))))))
+
+
 
 (defn move-loc [ed dir loc & {:keys [line]}]
   (when loc
     (let [len (if line
                 (count line)
-                (editor/line-length ed (:line loc)))
-          neue (editor/adjust-loc loc (if (= dir :left) -1 1))]
+                (editor/line-length ed (aget loc "line")))
+          neue (adjust-loc loc (if (= dir :left) -1 1))]
       (cond
-       (< (:ch neue) 0) (move-loc-line ed loc :up)
-       (>= (:ch neue) len) (move-loc-line ed loc :down)
+       (< (aget neue "ch") 0) (move-loc-line ed loc :up)
+       (>= (aget neue "ch") len) (move-loc-line ed loc :down)
        :else neue))))
 
 
 (defn within-range [[start end] cur]
-  (>= end (:line cur) start))
+  (when cur
+    (>= end (aget cur "line") start)))
 
 
 
 (defn loc-next-end-pair [ed loc]
-  (let [search-range [(:line loc) (+ (:line loc) 100)]]
-    (loop [cur loc
-           line (editor/line ed (:line loc))
-           level 0]
-      (if (or (not cur)
-              (not line)
-              (not (within-range search-range cur)))
-        nil
-        (let [ch (get line (:ch cur))
-              next-loc (move-loc ed :right cur :line line)
-              next-line (if (not= (:line cur) (:line next-loc))
-                          (editor/line ed (:line next-loc))
-                          line)]
-          (cond
-           (not (or (start-pair? ch) (end-pair? ch))) (recur next-loc next-line level)
-           (string|comment? ed cur) (recur next-loc next-line level)
-           (start-pair? ch) (recur next-loc next-line (inc level))
-           (and (end-pair? ch) (= 0 level)) cur
-           (end-pair? ch) (recur next-loc next-line (dec level))
-           :else (recur next-loc next-line level)))))))
+  (when loc
+    (let [search-range [(aget loc "line") (+ (aget loc "line") 100)]]
+      (loop [cur loc
+             line (editor/line ed (aget loc "line"))
+             level 0]
+        (if (or (not cur)
+                (not line)
+                (not (within-range search-range cur)))
+          nil
+          (let [ch (get line (aget cur "ch"))
+                next-loc (move-loc ed :right cur :line line)
+                next-line (when next-loc (if (not= (aget cur "line") (aget next-loc "line"))
+                            (editor/line ed (aget next-loc "line"))
+                            line))]
+            (cond
+             (not (or (start-pair? ch) (end-pair? ch))) (recur next-loc next-line level)
+             (string|comment? ed cur) (recur next-loc next-line level)
+             (start-pair? ch) (recur next-loc next-line (inc level))
+             (and (end-pair? ch) (= 0 level)) cur
+             (end-pair? ch) (recur next-loc next-line (dec level))
+             :else (recur next-loc next-line level))))))))
 
 
 
 (defn loc-next-matching-start-pair [ed loc pair-ch]
-  (let [search-range [(- (:line loc) 100) (:line loc)]]
-    (loop [cur loc
-           line (editor/line ed (:line loc))
-           level 0]
-      (if (or (not cur)
-              (not line)
-              (not (within-range search-range cur)))
-        nil
-        (let [ch (get line (:ch cur))
-              next-loc (move-loc ed :left cur :line line)
-              next-line (if (not= (:line cur) (:line next-loc))
-                          (editor/line ed (:line next-loc))
-                          line)]
-          (cond
-           (not (or (= ch (get opposites pair-ch)) (= ch pair-ch))) (recur next-loc next-line level)
-           (string|comment? ed cur) (recur next-loc next-line level)
-           (= ch (get opposites pair-ch)) (recur next-loc next-line (inc level))
-           (and (= ch pair-ch) (= 0 level)) cur
-           (= ch pair-ch) (recur next-loc next-line (dec level))
-           :else (recur next-loc next-line level)))))))
+  (when loc
+    (let [search-range [(- (aget loc "line") 100) (aget loc "line")]]
+      (loop [cur loc
+             line (editor/line ed (aget loc "line"))
+             level 0]
+        (if (or (not cur)
+                (not line)
+                (not (within-range search-range cur)))
+          nil
+          (let [ch (get line (aget cur "ch"))
+                next-loc (move-loc ed :left cur :line line)
+                next-line (when next-loc (if (not= (aget cur "line") (aget next-loc "line"))
+                                           (editor/line ed (aget next-loc "line"))
+                                           line))]
+            (cond
+             (not (or (= ch (get opposites pair-ch)) (= ch pair-ch))) (recur next-loc next-line level)
+             (string|comment? ed cur) (recur next-loc next-line level)
+             (= ch (get opposites pair-ch)) (recur next-loc next-line (inc level))
+             (and (= ch pair-ch) (= 0 level)) cur
+             (= ch pair-ch) (recur next-loc next-line (dec level))
+             :else (recur next-loc next-line level))))))))
 
 
 (defn get-bounds-matching [ed loc]
   (when-let [loc-next-end (loc-next-end-pair ed loc)]
     (when-let [loc-next-start (loc-next-matching-start-pair ed
                                                             (move-loc ed :left loc-next-end)
-                                                            (get opposites (get-ch ed loc-next-end)))]
+                                                            (get opposites (get-ch ed  loc-next-end)))]
       [loc-next-start loc-next-end])))
 
 
 
 (defn get-next-bounds-matching [ed [start end]]
   (when-let [loc-next-end (loc-next-end-pair ed (move-loc ed :right end))]
-     (when-let [loc-next-start (loc-next-matching-start-pair ed
-                                                             (move-loc ed :left start)
-                                                             (get opposites (get-ch ed loc-next-end)))]
-       [loc-next-start loc-next-end])))
+    (when-let [loc-next-start (loc-next-matching-start-pair ed
+                                                            (move-loc ed :left start)
+                                                            (get opposites (get-ch ed loc-next-end)))]
+      [loc-next-start loc-next-end])))
 
 
 (defn get-top-level-form
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed loc]
-   (reset! loc-counts {:start 0
-                       :end 0})
-   (if-let [[start end] (time (some->> (get-bounds-matching ed loc)
+   (if-let [[start end] (time (some->> (get-bounds-matching ed (clj->js loc))
                                        (iterate (partial get-next-bounds-matching ed))
                                        (take-while identity)
                                        last))]
 
-     (do
-       {:form-str (editor/range ed start (update-in end [:ch] inc))
-       :start start
-       :end (update-in end [:ch] inc)})
+     (let [start-c (js->clj start :keywordize-keys true)
+           end-c (js->clj end :keywordize-keys true)]
+       {:form-str (editor/range ed start-c (update-in end-c [:ch] inc))
+        :start start-c
+        :end (update-in end-c [:ch] inc)})
      (let [line (:line loc)
            line-str (editor/line ed (:line loc))]
        {:form-str line-str
