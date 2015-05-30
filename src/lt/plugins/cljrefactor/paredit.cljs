@@ -136,6 +136,16 @@
       (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed pos))))
 
+(defn split* [ed]
+  (let [pos (editor/->cursor ed)
+        form (u/get-top-level-form ed)]
+    (when-let [res (some-> (:form-str form)
+                           z/of-string
+                           (pe/split-at-pos (->zipper-pos-start pos form))
+                           z/root-string)]
+      (editor/replace ed (:start form) (:end form) res)
+      (editor/move-cursor ed pos))))
+
 
 (defn paredit-navigate [ed f & {:keys [dir] :or {dir :left}}]
   (let [pos (editor/->cursor ed)
@@ -240,10 +250,16 @@
           :reaction (fn [ed seq-type opts]
                       (paredit-cmd ed #(pe/wrap-around % seq-type) opts)))
 
+
+(behavior ::wrap-fully-forward-slurp!
+          :triggers #{:pared.wrap-fully-forward-slurp!}
+          :reaction (fn [ed seq-type opts]
+                      (paredit-cmd ed #(pe/wrap-fully-forward-slurp % seq-type) opts)))
+
 (behavior ::split!
           :triggers #{:pared.split!}
           :reaction (fn [ed opts]
-                      (paredit-cmd ed pe/split opts)))
+                      (split* ed)))
 
 (behavior ::join!
           :triggers #{:pared.join!}
@@ -254,6 +270,16 @@
           :triggers #{:pared.splice!}
           :reaction (fn [ed opts]
                       (splice* ed)))
+
+(behavior ::splice-killing-backward!
+          :triggers #{:pared.splice-killing-backward!}
+          :reaction (fn [ed opts]
+                      (paredit-cmd ed pe/splice-killing-backward {})))
+
+(behavior ::splice-killing-forward!
+          :triggers #{:pared.splice-killing-forward!}
+          :reaction (fn [ed opts]
+                      (paredit-cmd ed pe/splice-killing-forward {})))
 
 (behavior ::move-to-previous!
           :triggers #{:pared.move-to-previous!}
@@ -300,10 +326,6 @@
           :triggers #{:pared.select!}
           :reaction (fn [ed]
                       (paredit-select ed)))
-
-
-
-
 
 
 
@@ -414,6 +436,31 @@
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.wrap-around! :set {:col-adjust 2})))})
 
+(cmd/command {:command :pared.wrap-fully-forward-slurp-list
+              :desc "Clojure ParEd: Wrap around slurping forward - list"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.wrap-fully-forward-slurp! :list {:col-adjust 1})))})
+
+(cmd/command {:command :pared.wrap-fully-forward-slurp-vector
+              :desc "Clojure ParEd: Wrap around slurping forward - vector"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.wrap-fully-forward-slurp! :vector {:col-adjust 1})))})
+
+(cmd/command {:command :pared.wrap-fully-forward-slurp-set
+              :desc "Clojure ParEd: Wrap around slurping forward - set"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.wrap-fully-forward-slurp! :set {:col-adjust 2})))})
+
+(cmd/command {:command :pared.wrap-fully-forward-slurp-map
+              :desc "Clojure ParEd: Wrap around slurping forward - map"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.wrap-fully-forward-slurp! :map {:col-adjust 1})))})
+
+
 (cmd/command {:command :pared.split
               :desc "Clojure ParEd: Split"
               :exec (fn []
@@ -431,6 +478,19 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.splice! {})))})
+
+(cmd/command {:command :pared.splice-killing-forward
+              :desc "Clojure ParEd: Splice - killing forward"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.splice-killing-forward! {})))})
+
+(cmd/command {:command :pared.splice-killing-backward
+              :desc "Clojure ParEd: Splice - killing backward"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.splice-killing-backward! {})))})
+
 
 (cmd/command {:command :pared.move-to-previous
               :desc "Clojure ParEd: Move node to previous"
