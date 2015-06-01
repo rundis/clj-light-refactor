@@ -152,6 +152,7 @@
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)
         zloc (positioned-zip pos form)]
+
     (some-> (positioned-zip pos form)
             (maybe-reposition-rightmost pos form)
             f
@@ -161,8 +162,6 @@
                 (->start-pos % form)
                 (->end-pos % form)))
             (#(editor/move-cursor ed %)))))
-
-
 
 
 
