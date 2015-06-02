@@ -3,18 +3,20 @@
 
 
  ;; Middleware independent refactorings
- [:editor.clj :lt.plugins.cljrefactor.threading/thread-fully!]
- [:editor.clj :lt.plugins.cljrefactor.threading/thread-one!]
- [:editor.clj :lt.plugins.cljrefactor.threading/thread-first-fully!]
- [:editor.clj :lt.plugins.cljrefactor.threading/thread-last-fully!]
- [:editor.clj :lt.plugins.cljrefactor.threading/unwind-fully!]
- [:editor.clj :lt.plugins.cljrefactor.threading/unwind-one!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/thread-fully!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/thread-one!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/thread-first-fully!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/thread-last-fully!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-fully!]
- [:editor.cljs :lt.plugins.cljrefactor.threading/unwind-one!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/thread-fully!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/thread-one!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/thread-first-fully!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/thread-last-fully!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/unwind-fully!]
+ [:editor.clj.common :lt.plugins.cljrefactor.threading/unwind-one!]
+
+ [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-if!]
+ [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-if!]
+
+ [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-col!]
+ [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-col!]
+
+
 
  [:editor.clj :lt.plugins.cljrefactor.definition/start-show-definition]
  [:editor.clj :lt.plugins.cljrefactor.definition/show-definition-at-cursor]
@@ -23,11 +25,6 @@
  [:editor.cljs :lt.plugins.cljrefactor.definition/show-definition-at-cursor]
  [:editor.cljs :lt.plugins.cljrefactor.definition/finish-show-definition]
 
- [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-if!]
- [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-if!]
-
- [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-col!]
- [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-col!]
 
 
  [:editor.clj :lt.plugins.cljrefactor/ensure-connected]

@@ -261,9 +261,7 @@
        {:form-str (editor/range ed start-c (update-in end-c [:ch] inc))
         :start start-c
         :end (update-in end-c [:ch] inc)})
-     (let [line (:line loc)
-           line-str (editor/line ed (:line loc))]
-       {:form-str line-str
-        :start {:line line :ch 0}
-        :end {:line line :ch (count line-str)}}))))
+     (when (= (:ch loc) 0)
+       ;; horrible hack, for kill and friends this won't help much !
+       (get-top-level-form ed (assoc loc :ch 1))))))
 

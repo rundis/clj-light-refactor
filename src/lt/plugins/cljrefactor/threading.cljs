@@ -1,5 +1,10 @@
 (ns lt.plugins.cljrefactor.threading
   (:require [clojure.zip :as z]
+            [rewrite-clj.paredit :as pe]
+            [rewrite-clj.zip :as rz]
+            [rewrite-clj.zip.utils :as ru]
+            [rewrite-clj.zip.whitespace :as ws]
+            [rewrite-clj.node :as nd]
             [cljs.reader :as rdr]
             [clojure.string :as s]
             [lt.object :as object]
@@ -11,205 +16,300 @@
   (:require-macros [lt.macros :refer [behavior]]))
 
 
+(defn- unwrap-if-list-of-one [zloc]
+  (if (and (some-> zloc rz/down rz/leftmost?) (some-> zloc rz/down rz/rightmost?))
+    (-> zloc pe/splice)
+    zloc))
 
-(defn top [zipnode]
-  (loop [n zipnode]
-    (if-not (z/up n)
-      n
-      (recur (z/up n)))))
+(defn- maybe-wrap-in-threading [zloc t]
+  (if-not (= (str t) (some-> zloc rz/down rz/string))
+    (-> zloc
+        (pe/wrap-around :list)
+        (rz/insert-left (nd/token-node t))
+        z/up)
+    zloc))
 
-
-(defn threading-locator [t]
-  (case t
-    ("->" "some->")     #(-> % z/down z/right z/down z/right)
-    ("->>" "some->>")   #(-> % z/down z/right z/down z/rightmost)
-    :else nil))
-
-(defn unwind-op [t]
-  (case t
-    ("->" "some->")     #(-> %1 z/down (z/insert-right %2))
-    ("->>" "some->>")   #(z/append-child % %2)
-    :else nil))
-
-
-(defn threaded? [zipnode]
-  (when-let [f (z/down zipnode)]
-    (some #{"->" "->>" "some->" "some->>"} [(str (z/node f))])))
+(defn- maybe-wrap-in-list [zloc]
+  (if-not (rz/list? zloc)
+    (-> zloc (pe/wrap-around :list) z/up)
+    zloc))
 
 
 
-(defn wrap-in-thread [zipnode t]
-  (-> (list (rdr/read-string t))
-      z/seq-zip
-      z/down
-      (z/insert-right (z/node zipnode))
-      z/up))
+(defn- maybe-insert-promotee-lb
+  [zloc promotee]
+  (if (or (some-> promotee z/right ws/linebreak?)
+          (and (or (some-> promotee z/left ws/linebreak?)
+                   (some-> promotee z/left ws/comment?))
+               (not (some-> promotee z/right ws/comment?))))
+    (ws/prepend-newline zloc)
+    zloc))
 
-(defn unwrap-list-if-one [node]
-  ;; if somehow node was a vector this would croak, somewhere along the way a node got from list to a lazy-seq ...
-  (if (and (seq node ) (= (count node) 1))
-    (-> node z/seq-zip z/down z/node)
-    node))
+(defn- maybe-insert-promotee-comment
+  [zloc promotee]
+  (if (some-> promotee z/right ws/comment?)
+    (-> zloc (z/insert-left  (z/node (-> promotee z/right))))
+    zloc))
 
+(defn- do-thread-first-one
+  [zloc]
+  (let [promotee (some-> zloc rz/down rz/right rz/down rz/right
+                         (ru/remove-left-while ws/whitespace-not-linebreak?)
+                         (ru/remove-right-while ws/whitespace-not-linebreak?))]
+    (-> promotee
+        (ru/remove-right-while ws/whitespace-or-comment?)
+        ws/prepend-space
+        ru/remove-and-move-up
+        (rz/insert-left (rz/node promotee))
+        (maybe-insert-promotee-lb promotee)
+        (maybe-insert-promotee-comment promotee)
+        unwrap-if-list-of-one
+        z/up)))
 
+(defn- do-thread-last-one
+  [zloc]
+  (let [promotee (some-> zloc rz/down rz/right rz/down rz/rightmost
+                         (ru/remove-left-while ws/whitespace-not-linebreak?)
+                         (ru/remove-right-while ws/whitespace?))]
+    (-> promotee
+        (ru/remove-right-while ws/whitespace-or-comment?)
+        (ru/remove-left-while ws/whitespace?)
+        ru/remove-and-move-up
+        (rz/insert-left (rz/node promotee))
+        (maybe-insert-promotee-lb promotee)
+        (maybe-insert-promotee-comment promotee)
+        unwrap-if-list-of-one
+        z/up)))
 
-(defn further-threadable? [cand]
-  (list? (-> cand z/down z/right z/node)))
-
-(defn do-thread-one [cand cand-fn]
-  (if-not (further-threadable? cand)
-    cand
-    (let [promote (-> cand cand-fn z/node)
-          therest (-> cand cand-fn z/remove)]
-      (-> therest
-          z/up
-          (z/insert-left promote)
-          (#(z/replace % (unwrap-list-if-one (z/node %))))
-          z/up))))
-
-(defn- do-thread [orig cand-fn t]
-  (when (seq orig)
-    (let [root (if (threaded? orig) orig (wrap-in-thread orig t))]
-      (loop [cand root]
-        (if-not (further-threadable? cand)
-          cand
-          (recur (do-thread-one cand cand-fn)))))))
-
-
-(defn thread-first [form-str]
-  (when-let [node (p/str->seq-zip form-str)]
-    (-> node
-        (do-thread (threading-locator "->") "->")
-        p/zip->str)))
-
-(defn thread-last [form-str]
-  (when-let [node (p/str->seq-zip form-str)]
-    (-> node
-        (do-thread (threading-locator "->>") "->>")
-        p/zip->str)))
+(defn- threading-node? [zloc]
+  (some #{"->" "->>" "some->" "some->>"} [(some-> zloc rz/string)]))
 
 
-(defn thread [form-str]
-  (let [node (p/str->seq-zip form-str)
-        threading (when node (threaded? node))]
-    (when (and node threading)
-      (-> node
-          (do-thread (threading-locator threading) threading)
-          p/zip->str))))
+(defn- threadable? [zloc]
+  (and (some-> zloc rz/down rz/right rz/list?)
+       (some-> zloc rz/down rz/right rz/down rz/right)))
 
-(defn thread-one [form-str]
-  (let [node (p/str->seq-zip form-str)
-        threading (when node (threaded? node))]
-    (when (and node threading)
-      (-> node
-          (do-thread-one (threading-locator threading))
-          p/zip->str))))
-
-(defn unwrap-threading [zipnode]
-  (-> zipnode  z/down z/right z/node z/seq-zip))
-
-(defn maybe-wrap-in-list [node]
-  (if (list? node)
-    node
-    (z/node (z/seq-zip (list node)))))
+(defn unwindable? [zloc]
+  (and
+   (some-> zloc rz/down threading-node?)
+   (some-> zloc rz/down rz/right rz/right)))
 
 
-(defn further-unwindable? [zipnode]
-  (> (count (-> zipnode z/children )) 2))
+(defn- maybe-insert-demotee-comment [zloc demotee]
+  (if (some-> demotee z/right ws/comment?)
+    (rz/insert-right zloc (z/node (z/right demotee)))
+    zloc))
+
+(defn- maybe-insert-demotee-lb [zloc demotee]
+  (if (and (or (some-> demotee z/right ws/linebreak?)
+               (some-> demotee z/right ws/comment?))
+           (not (some-> zloc (ru/remove-left-while ws/whitespace?) z/left ws/comment?)))
+    (ws/append-newline zloc)
+    zloc))
+
+(defn maybe-unwrap-threading [zloc]
+  (if (and (threading-node? (some-> zloc rz/down))
+           (not (unwindable? zloc)))
+    (-> zloc
+        rz/down
+        ru/remove-and-move-up
+        rz/splice)
+    zloc))
 
 
-(defn maybe-unwrap-threading [zipnode]
-  (if-not (further-unwindable? zipnode)
-    (unwrap-threading zipnode)
-    zipnode))
+(defn- do-unwind-thread-first-one [zloc]
+  (let [demotee (some-> zloc
+                        rz/down
+                        rz/right
+                        (ru/remove-right-while ws/whitespace-not-linebreak?))]
+    (-> demotee
+        rz/right
+        (ru/remove-left-while ws/whitespace-or-comment?)
+        ru/remove-left
+        maybe-wrap-in-list
+        rz/down
+        (ru/remove-right-while ws/whitespace?)
+        (#(if (some-> % z/right ws/comment?) (z/right %) %))
+        (maybe-insert-demotee-comment demotee)
+        (rz/insert-right (z/node demotee))
+        ws/skip-whitespace
+        (maybe-insert-demotee-lb demotee)
+        z/up z/up
+        maybe-unwrap-threading)))
 
-(defn do-unwind-one [cand unwind-fn]
-  (if-not (further-unwindable? cand)
-    cand
-    (let [demote (-> cand z/down z/right z/node)
-          therest (-> cand z/down z/right z/remove)]
-      (-> therest
-          z/right
-          (#(z/replace % (maybe-wrap-in-list (z/node %)))) ; Ensure list before demoting
-          (unwind-fn demote)
-          top))))
+(defn- do-unwind-thread-last-one [zloc]
+  (let [demotee (some-> zloc
+                        rz/down
+                        rz/right
+                        (ru/remove-right-while ws/whitespace-not-linebreak?))]
+    (-> demotee
+        rz/right
+        (ru/remove-left-while ws/whitespace-or-comment?)
+        ru/remove-left
+        maybe-wrap-in-list
+        z/down z/rightmost
+        (ru/remove-left-while ws/whitespace?)
+        ws/prepend-space
+        (maybe-insert-demotee-comment demotee)
+        (rz/insert-right (z/node demotee))
+        (maybe-insert-demotee-lb demotee)
+        z/up z/up
+        maybe-unwrap-threading
+        )))
 
 
-(defn do-unwind [root unwind-fn]
-  (loop [cand root]
-    (if-not (further-unwindable? cand)
-      cand
-      (recur (do-unwind-one cand unwind-fn)))))
+(defn- do-thread-first-fully [zloc]
+  (if-not (threadable? zloc)
+    zloc
+    (recur (do-thread-first-one zloc))))
 
-(defn unwind [form-str]
- (let [node (p/str->seq-zip form-str)
-       threading (when node (threaded? node))]
-   (when (and node threading)
-     (-> node
-         (do-unwind (unwind-op threading))
-         (unwrap-threading)
-         p/zip->str))))
+(defn- do-thread-last-fully [zloc]
+  (if-not (threadable? zloc)
+    zloc
+    (recur (do-thread-last-one zloc))))
+
+(defn- do-unwind-thread-first-fully [zloc]
+  (if-not (unwindable? zloc)
+    zloc
+    (recur (do-unwind-thread-first-one zloc))))
 
 
-(defn unwind-one [form-str]
-  (let [node (p/str->seq-zip form-str)
-        threading (when node (threaded? node))]
+(defn- do-unwind-thread-last-fully [zloc]
+  (if-not (unwindable? zloc)
+    zloc
+    (recur (do-unwind-thread-last-one zloc))))
 
-    (when (and node threading)
-      (-> node
-          (do-unwind-one (unwind-op threading))
-          maybe-unwrap-threading
-          p/zip->str))))
 
-(defn format-form [form-str]
-  (-> form-str
-      (s/replace #"\s+\(" "\n(")))
 
+
+(defn thread-first-fully* [t zloc]
+  (-> zloc
+      (maybe-wrap-in-threading t)
+      do-thread-first-fully))
+
+
+(defn thread-last-fully* [t zloc]
+  (-> zloc
+      (maybe-wrap-in-threading t)
+      do-thread-last-fully))
+
+
+(defn unwind-thread-first-fully* [zloc]
+  (-> zloc
+      do-unwind-thread-first-fully))
+
+
+(defn unwind-thread-last-fully* [zloc]
+  (-> zloc
+      do-unwind-thread-last-fully))
+
+(defn- lookup-thread-fn [zloc]
+  (case (some-> zloc rz/string)
+    ("->" "some->")   {:thread-one do-thread-first-one
+                       :thread-fully do-thread-first-fully
+                       :unwind-one do-unwind-thread-first-one
+                       :unwind-fully do-unwind-thread-first-fully}
+    ("->>" "some->>") {:thread-one do-thread-last-one
+                       :thread-fully do-thread-last-fully
+                       :unwind-one do-unwind-thread-last-one
+                       :unwind-fully do-unwind-thread-last-fully}
+    nil))
+
+(defn thread-one* [zloc]
+  (when (threadable? zloc)
+    (when-let [thread-fn (some-> zloc z/down lookup-thread-fn :thread-one)]
+     (thread-fn zloc))))
+
+
+(defn thread-fully* [zloc]
+  (when (threadable? zloc)
+    (when-let [thread-fn (some-> zloc z/down lookup-thread-fn :thread-fully)]
+      (thread-fn zloc))))
+
+(defn unwind-one* [zloc]
+  (when (unwindable? zloc)
+    (when-let [thread-fn (some-> zloc z/down lookup-thread-fn :unwind-one)]
+     (thread-fn zloc))))
+
+
+(defn unwind-fully* [zloc]
+  (when (unwindable? zloc)
+    (when-let [thread-fn (some-> zloc z/down lookup-thread-fn :unwind-fully)]
+     (thread-fn zloc))))
+
+
+
+(defn- ->zipper-pos-start [pos form]
+  (let [row (inc (- (:line pos) (-> form :start :line)))]
+    {:row row
+     :col (inc (- (:ch pos)
+                  (if (= 1 row) (-> form :start :ch) 0)))}))
+
+(defn format-keep-pos [ed]
+  (let [pos (editor/->cursor ed)]
+    (when-let [form (u/get-top-level-form ed pos)]
+      (let [hist (editor/get-history ed)]
+        (editor/set-selection ed (:start form) (:end form))
+        (editor/set-history ed hist))
+      (editor/indent-selection ed "smart")
+      (editor/move-cursor ed pos))))
+
+
+(defn- maybe-reposition [zloc]
+  (if (threading-node? zloc)
+    (z/up zloc)
+    zloc))
 
 (defn replace-cmd [ed replace-fn]
-  (let [{:keys [form-str start end]} (u/get-form ed)]
-    (when form-str
-      (when-let [res (some-> form-str replace-fn format-form)]
-        (editor/replace ed start end res)
-        (let [{s1 :start s2 :end} (u/get-form ed (-> start (update-in [:ch] inc)))]
-          (editor/set-selection ed s1 s2)
-          (editor/indent-selection ed "smart")))
-      (editor/move-cursor ed (-> start (update-in [:ch] inc))))))
+  (let [pos (editor/->cursor ed)
+        form (u/get-top-level-form ed pos)
+        zloc (some-> form
+                     :form-str
+                     rz/of-string
+                     (rz/find-last-by-pos (->zipper-pos-start pos form))
+                     maybe-reposition)]
+    (when-let [res (-> zloc replace-fn rz/root-string)]
+      (editor/replace ed (:start form) (:end form) res)
+      (editor/move-cursor ed pos)
+      (format-keep-pos ed))))
 
+(let [dill "dalL"]
+  (map inc
+       (filter even?
+               [1 2 3 4 5])))
 
 
 (behavior ::thread-fully!
           :triggers #{:refactor.thread-fully!}
           :reaction (fn [ed]
-                      (replace-cmd ed thread)))
+                      (replace-cmd ed thread-fully*)))
+
 
 (behavior ::thread-one!
           :triggers #{:refactor.thread-one!}
           :reaction (fn [ed]
-                      (replace-cmd ed thread-one)))
-
+                      (replace-cmd ed thread-one*)))
 
 (behavior ::thread-first-fully!
           :triggers #{:refactor.thread-first-fully!}
           :reaction (fn [ed]
-                      (replace-cmd ed thread-first)))
+                      (replace-cmd ed (partial thread-first-fully* '->))))
 
 (behavior ::thread-last-fully!
           :triggers #{:refactor.thread-last-fully!}
           :reaction (fn [ed]
-                      (replace-cmd ed thread-last)))
+                      (replace-cmd ed (partial thread-last-fully* '->>))))
 
 
 (behavior ::unwind-fully!
           :triggers #{:refactor.unwind-fully!}
           :reaction (fn [ed]
-                      (replace-cmd ed unwind)))
+                      (replace-cmd ed unwind-fully*)))
 
 (behavior ::unwind-one!
           :triggers #{:refactor.unwind-one!}
           :reaction (fn [ed]
-                      (replace-cmd ed unwind-one)))
-
+                      (replace-cmd ed unwind-one*)))
 
 
 
@@ -269,6 +369,3 @@
 
   (thread-one "(some-> (assoc (assoc {:a 1} :b 2) :c 3))")
   (thread "(->> (map #(+ % 1) (filter even? [1 2 3 4 5])))"))
-
-
-
