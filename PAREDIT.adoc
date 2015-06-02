@@ -1,0 +1,55 @@
+=  Paredit support in Clj-Light-Refactor
+Improved Paredit support for LightTable (clojure only !)
+v0.1.0, 2015-04-09: Initial release
+:library: Asciidoctor
+:numbered:
+:idprefix:
+:toc: macro
+
+toc::[]
+
+
+== Introduction
+This is another attempt at providing Paredit support for Light Table.
+The functionality is bundled with the clj-light-refactor plugin, but probably at some point it will be
+factored out into a separate plugin.
+
+The plugin is scoped to only support Clojure(/ClojureScript/EDN), this limitation has opened a completely
+different route for implementing paredit support that previous attempts in Light Table.
+The plugin makes heavy use of the https://github.com/rundis/rewrite-cljs[rewrite-cljs] library.
+The library allows us to treat the code as an virtual AST rather than a stream of characters and provides
+some truly exceptional flexibility in terms of implementing paredit features (and way beyond).
+
+It's still some way to go, but the basic features are mostly working pretty nicely !
+
+
+== Limitations
+No sweeping this under the carpet:
+- If you write illegal Clojure code, the features will fail (do nothing or throw errors)
+- To keep the features snappy enough, keep your top level form size sensible (top level forms beyond 3-400 lines will not work nicely)
+- There is no strict mode option (and none coming in the immediate future)
+- Most if not all features require you to work in the context of top-level forms
+
+
+== Navigation
+The navigation commands have similarities to Emacs, but it's better to compare with the movement functions
+in clojure.zip. It should be supereasy for you to add custom navigation commands if you are somewhat
+familiar with clojure.zip
+
+
+
+[cols="3*a", options="header"]
+|===
+|Command
+|Description
+|Sample
+
+|Move right
+|Move cursor to start of right sibling
+|(+ [red underline]#1# 1) => (+ 1 [red underline]#1#)
+
+|Move left
+|Move cursor to start of left sibling
+|(+ 1 1) => (+ 1 1)
+
+|===
