@@ -32,6 +32,32 @@ No sweeping this under the carpet:
 - Most if not all features require you to work in the context of top-level forms
 
 
+
+== Basics
+
+[cols="3*a", options="header"]
+|===
+|Command
+|Description
+|Sample
+
+|Open list/vector/set/map
+|Create a list/vector/set/map pair append space and position cursor
+|`(foo \|bar) => (foo (\|) bar)`
+
+|Open doublequote
+|Create a doublequote pair
+|`(str \|"bar") => (str "\|" "bar")`
+
+|Open anonymous function
+|Create an empty anonymous function
+|`(let [myfn \|]) +
+=> (let [myfn #{\|}])`
+
+
+
+|===
+
 == Navigation
 The navigation commands have similarities to Emacs, but it's better to compare with the movement functions
 in clojure.zip. It should be supereasy for you to add custom navigation commands if you are somewhat
@@ -76,6 +102,44 @@ familiar with clojure.zip
 |Reverse of move next
 
 |===
+
+
+== Killing
+[cols="3*a", options="header"]
+|===
+|Command
+|Description
+|Sample
+
+|Kill
+|Kill all sibling nodes to the right of the current node (when in seq node)
+|`[1 2\| 3 4] => [1 2\|]` +
+`[1 [\|] 2] => [1 2]`
+
+|
+|Kill to end of comment (when in comment)
+|[source,clojure]
+({:a 1 ; Hello\| world
+  :b 2}
+
+[source,clojure]
+({:a 1 ; Hello\| \n
+  :b 2}
+
+|
+|Kill to end of string (when in string)
+|`(str "Hello\| World!")` +
+=> `(str "Hello\|")`
+
+|
+|Kill in empty string - nukes
+|`(str "\" "World")` => (str "World")
+
+
+|===
+
+TIP: Killing words forward/backward comming soon(ish)
+
 
 
 == Slurping and barfing
