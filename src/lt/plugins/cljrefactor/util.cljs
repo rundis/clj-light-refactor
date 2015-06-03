@@ -250,10 +250,10 @@
 (defn get-top-level-form
   ([ed] (get-top-level-form ed (editor/->cursor ed)))
   ([ed loc]
-   (if-let [[start end] (time (some->> (get-bounds-matching ed (clj->js loc))
-                                       (iterate (partial get-next-bounds-matching ed))
-                                       (take-while identity)
-                                       last))]
+   (if-let [[start end] (some->> (get-bounds-matching ed (clj->js loc))
+                                 (iterate (partial get-next-bounds-matching ed))
+                                 (take-while identity)
+                                 last)]
 
 
      (let [start-c (js->clj start :keywordize-keys true)

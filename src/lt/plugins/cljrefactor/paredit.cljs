@@ -192,7 +192,13 @@
       :doublequote  ["\"\"" (np 1)]
       (println "Pair type Not found"))))
 
-
+(defn lookup-start-pair [t]
+  (case t
+    :list "("
+    :vector "["
+    :map "{"
+    :doublequote "\""
+    nil))
 
 
 ;; ================================
@@ -203,9 +209,23 @@
           :triggers #{:pared.open-pair!}
           :reaction (fn [ed t]
                       (let [pos (editor/->cursor ed)
+                            line (editor/line ed (:line pos))
                             [pair new-pos] (->pair t pos)]
-                        (editor/insert-at-cursor ed (maybe-add-space ed pair))
-                        (editor/move-cursor ed new-pos))))
+                        (cond
+                         (and (= :doublequote t)
+                              (u/stringz? ed pos line (editor/->token-type ed pos)))
+                           (do
+                             (editor/insert-at-cursor ed "\\\"")
+                             (editor/move-cursor ed (editor/adjust-loc pos 2)))
+                         (and (u/string|comment? ed pos line) (lookup-start-pair t))
+                           (do
+                             (editor/insert-at-cursor ed (lookup-start-pair t))
+                             (editor/move-cursor ed (editor/adjust-loc pos 1)))
+                         :else
+                           (do
+                             (editor/insert-at-cursor ed (maybe-add-space ed pair))
+                             (editor/move-cursor ed new-pos))))))
+
 
 
 (behavior ::slurp-forward!
@@ -553,3 +573,4 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.select!)))})
+
