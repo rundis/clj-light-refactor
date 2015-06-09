@@ -43,11 +43,14 @@ No sweeping this under the carpet:
 
 |Open list/vector/set/map
 |Create a list/vector/set/map pair append space and position cursor
-|`(foo \|bar) => (foo (\|) bar)`
+|`(foo \|bar) => (foo (\|) bar)` +
+`(foo) ; bar\| => (foo) ; bar(\|` +
+`(str "he\|llo") => (str "he(\|llo")`
 
 |Open doublequote
 |Create a doublequote pair
-|`(str \|"bar") => (str "\|" "bar")`
+|`(str \|"bar") => (str "\|" "bar")` +
+`(str "Hello\|") => "Hello\"\|")`
 
 |Open anonymous function
 |Create an empty anonymous function
@@ -133,12 +136,37 @@ familiar with clojure.zip
 
 |
 |Kill in empty string - nukes
-|`(str "\" "World")` => (str "World")
+|`(str "\|" "World")` => (str "World")`
+
+
+|Kill one
+|Kill the node at position
+|`[10 \|20 30] => [10 \|30]` +
+`[10 2\|0 30] => [10 3\|0]` +
+`[10 \|[20] 30] => [10 \|30]`
+
+|
+|Kill word in comment at position
+|`; \|hello world => ; \| world`
+
+|
+|Kill word in string at position
+|[source,clojure]
+----
+(str "Foo
+      \|Bar
+      Do")
+----
+[source,clojure]
+----
+(str "Foo
+      \|Do")
+----
 
 
 |===
 
-TIP: Killing words forward/backward comming soon(ish)
+
 
 
 

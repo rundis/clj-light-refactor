@@ -115,6 +115,7 @@
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/barf-forward!]
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/barf-backward!]
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/kill!]
+ [:editor.clj.common :lt.plugins.cljrefactor.paredit/kill-one!]
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/wrap-around!]
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/wrap-fully-forward-slurp!]
  [:editor.clj.common :lt.plugins.cljrefactor.paredit/split!]

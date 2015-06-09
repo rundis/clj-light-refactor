@@ -42,12 +42,11 @@ WARNING: However you are on your own, you should know what you are doing! Also y
 * Profiles are not handled particularily well (ie might throw exceptions, or some operation results in a noop when they shouldn't)
 * Some refactorings currently uses **cljs.reader/read-string** to "parse" code. That reader only
 supports a subset of clojure's syntax (no-ops and/or exceptions may happen when using reader macros like ', #, @ etc)
-* Some of the refactoring features described in chapter 6 uses clojure.zip (in its ClojureScript incarnation).
-An unfortunate side-effect of this is the loss of comments, metadata and most notably formatting. Until I'm able to add some sort of proper parser
-this will remain a pretty severe limitation.
 
 
 
+== PAREDIT
+The plugin comes bundled with wastly improved PAREDIT support. See link:PAREDIT.adoc[] for details.
 
 == Middleware independent refactorings
 
@@ -91,13 +90,11 @@ editors.
 |===
 
 
-NOTE: No formatting currenly. Anonymous function literal blocks are wrapped in strings to allow parsing. So threading within a function literal block is a no go.
-Recognized threading macros currently includes : ->, ->>, some-> and some->>
 
 
 [source, clojure]
 ----
-;; place the cursor somewhere within the outer form and invoke Thread fully
+;; place the cursor to the left of the outer form (or on/left of the threading symbol) and invoke Thread fully
 (-> (assoc (assoc {:a 1} :b 2) :c 3))
 ;; You'll get
 (-> {:a 1} (assoc :b 2) (assoc :c 3))
@@ -106,12 +103,6 @@ Recognized threading macros currently includes : ->, ->>, some-> and some->>
 (:c (:b (:a {:a {:b {:c 1}}})))
 ; yields
 (-> {:a {:b {:c 1}}} :a :b :c)
-
-
-;; Some handling of anonymous functions are handled ok, like
-(->> (map #(+ % 1) (filter even? [1 2 3 4 5])))
-; yields
-(->> [1 2 3 4 5] (filter even?) (map #(+ % 1) ))
 
 ----
 
@@ -425,6 +416,9 @@ How about navigating directly to a resource file from a clojure file that refers
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
+* Upcoming release
+** Paredit features
+** Improved handling of formatting for threading refactoring
 * 0.1.5
 ** New feature: Jump to resource
 ** New feature: Namespace browser with jump to symbol support

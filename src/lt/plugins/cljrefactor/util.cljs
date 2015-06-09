@@ -87,25 +87,30 @@
   (get (editor/line ed (or (aget loc "line") (:line loc))) (or (aget loc "ch") (:ch loc))))
 
 
-
-
-
 (defn- adjust-loc [loc delta]
   (js-obj "line" (aget loc "line") "ch" (+ (aget loc "ch") delta)))
 
 
-(defn- string|comment? [ed loc line]
-  (let [t (editor/->token-type ed loc)
-        str-contains? #(> (.indexOf %1 %2) -1)
-        ch (get line (aget loc "ch"))
-        left-ch (get line (aget (adjust-loc loc -1) "ch"))]
+(defn- str-contains? [a b]
+  (> (.indexOf a b) -1))
+
+(defn stringz? [ed loc line token-type]
+  (when token-type
+    (let [ch (get line (aget loc "ch"))
+         left-ch (get line (aget (adjust-loc loc -1) "ch"))]
+     (and (str-contains? token-type "string")
+          (not
+           (and (end-pair? ch)
+                (= \" left-ch)
+                (not (= "string" (editor/->token-type ed (js->clj (adjust-loc loc 1)))))))))))
+
+(defn string|comment? [ed loc line]
+  (let [t (editor/->token-type ed loc)]
     (when t
       (cond
        (str-contains? t "comment-form") false
        (str-contains? t "comment") true
-       (and (str-contains? t "string")
-            (not
-             (and (end-pair? ch) (= \" left-ch) (not (= "string" (editor/->token-type ed (js->clj (adjust-loc loc 1)))))))) true
+       (stringz? ed loc line t) true
        :else false))))
 
 

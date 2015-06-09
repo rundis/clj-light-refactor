@@ -137,6 +137,17 @@
       (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed pos))))
 
+(defn kill-one* [ed]
+  (let [pos (editor/->cursor ed)
+        form (u/get-top-level-form ed)]
+    (when-let [res (some-> (:form-str form)
+                           z/of-string
+                           (pe/kill-one-at-pos (->zipper-pos-start pos form))
+                           z/root-string)]
+      (editor/replace ed (:start form) (:end form) res)
+      (editor/move-cursor ed pos))))
+
+
 (defn split* [ed]
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed)]
@@ -262,6 +273,11 @@
           :triggers #{:pared.kill!}
           :reaction (fn [ed opts]
                       (kill* ed)))
+
+(behavior ::kill-one!
+          :triggers #{:pared.kill-one!}
+          :reaction (fn [ed opts]
+                      (kill-one* ed)))
 
 
 
@@ -432,6 +448,12 @@
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.kill! {})))})
 
+(cmd/command {:command :pared.kill
+              :desc "Clojure ParEd: Kill one"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :pared.kill-one! {})))})
+
 (cmd/command {:command :pared.wrap-around-list
               :desc "Clojure ParEd: Wrap around - list"
               :exec (fn []
@@ -573,4 +595,3 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :pared.select!)))})
-
