@@ -10,6 +10,9 @@
  [:editor.clj.common :lt.plugins.cljrefactor.threading/unwind-fully!]
  [:editor.clj.common :lt.plugins.cljrefactor.threading/unwind-one!]
 
+ [:editor.clj.common :lt.plugins.cljrefactor.letz/introduce-let!]
+ [:editor.clj.common :lt.plugins.cljrefactor.letz/promote-let!]
+
  [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-if!]
  [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-if!]
 
@@ -106,39 +109,6 @@
  ;; jump to resource
  [:editor.clj :lt.plugins.cljrefactor.resource/find-resource]
  [:editor.clj :lt.plugins.cljrefactor.resource/find-resource.res]
-
-
- ;; Paredit
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/open-pair!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-forward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-backward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/barf-forward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/barf-backward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/kill!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/kill-one!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/wrap-around!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/wrap-fully-forward-slurp!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/split!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/join!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/splice!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/splice-killing-backward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/splice-killing-forward!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-to-previous!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-forward-fully!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/slurp-backward-fully!]
-
- ; movements
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-next!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-prev!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-down!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-up!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-up-pos-right!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-right!]
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/move-left!]
-
-
- ; Misc
- [:editor.clj.common :lt.plugins.cljrefactor.paredit/select!]
 
 
  ]

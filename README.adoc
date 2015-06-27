@@ -45,9 +45,6 @@ supports a subset of clojure's syntax (no-ops and/or exceptions may happen when 
 
 
 
-== PAREDIT
-The plugin comes bundled with wastly improved PAREDIT support. See link:PAREDIT.adoc[] for details.
-
 == Middleware independent refactorings
 
 === Introduce ns
