@@ -57,6 +57,34 @@
     (> (count (js->clj (.getSelections cm-ed))) 1)))
 
 
+(defn format-keep-pos
+  "Format form at pos and keep cursor position."
+  [ed]
+  (let [pos (editor/->cursor ed)]
+    (when-let [form (get-top-level-form ed pos)]
+      (let [hist (editor/get-history ed)]
+        (editor/set-selection ed (:start form) (:end form))
+        (editor/set-history ed hist))
+      (editor/indent-selection ed "smart")
+      (editor/move-cursor ed pos))))
+
+
+(defn ->zipper-pos-start
+  "Calculate zipper pos start coordinates from LT cursor coordinates"
+  [pos form]
+  (let [row (inc (- (:line pos) (-> form :start :line)))]
+    {:row row
+     :col (inc (- (:ch pos)
+                  (if (= 1 row) (-> form :start :ch) 0)))}))
+
+
+
+(defn ->start-pos
+  "Convert zipper position to LT editor coordinates for start of a given form"
+  [z-pos form]
+  {:ch (+ (dec (:col z-pos))
+          (if (= 1 (:row z-pos)) (-> form :start :ch) 0))
+   :line (+ (-> form :start :line) (dec (:row z-pos)))})
 
 ;; ==================================
 ;; Improved form selection utils

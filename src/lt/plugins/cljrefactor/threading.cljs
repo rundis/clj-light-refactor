@@ -239,22 +239,6 @@
 
 
 
-(defn- ->zipper-pos-start [pos form]
-  (let [row (inc (- (:line pos) (-> form :start :line)))]
-    {:row row
-     :col (inc (- (:ch pos)
-                  (if (= 1 row) (-> form :start :ch) 0)))}))
-
-(defn format-keep-pos [ed]
-  (let [pos (editor/->cursor ed)]
-    (when-let [form (u/get-top-level-form ed pos)]
-      (let [hist (editor/get-history ed)]
-        (editor/set-selection ed (:start form) (:end form))
-        (editor/set-history ed hist))
-      (editor/indent-selection ed "smart")
-      (editor/move-cursor ed pos))))
-
-
 (defn- maybe-reposition [zloc]
   (if (threading-node? zloc)
     (z/up zloc)
@@ -266,17 +250,13 @@
         zloc (some-> form
                      :form-str
                      rz/of-string
-                     (rz/find-last-by-pos (->zipper-pos-start pos form))
+                     (rz/find-last-by-pos (u/->zipper-pos-start pos form))
                      maybe-reposition)]
     (when-let [res (-> zloc replace-fn rz/root-string)]
       (editor/replace ed (:start form) (:end form) res)
       (editor/move-cursor ed pos)
-      (format-keep-pos ed))))
+      (u/format-keep-pos ed))))
 
-(let [dill "dalL"]
-  (map inc
-       (filter even?
-               [1 2 3 4 5])))
 
 
 (behavior ::thread-fully!
