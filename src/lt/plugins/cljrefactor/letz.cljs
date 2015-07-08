@@ -19,18 +19,54 @@
       (z/insert-right (nd/newlines 1))))
 
 
+
+(defn alet? [zloc]
+  (some #{"let" "when-let" "letfn"} [(z/string zloc)]))
+
+(defn find-let [zloc]
+  (when zloc
+    (if-let [alet (-> zloc z/leftmost alet?)]
+      [alet (z/leftmost zloc)]
+      (find-let (z/up zloc)))))
+
+
+(defn- replace-let-defs [zloc let-defs]
+  (let [vs (apply hash-map
+                  (reverse (->> let-defs
+                                z/node
+                                nd/children
+                                (remove nd/whitespace-or-comment?)
+                                (map nd/string))))]
+    (->> zloc
+         (iterate (fn [loc]
+                    (if-let [r (get vs (z/string loc))]
+                      (z/replace loc (symbol r))
+                      (z/next loc))))
+         (take-while identity)
+         (take-while (complement z/end?))
+         last)))
+
+(defn create-entity []
+  {:created-at (let [date (Date.)]
+                 date)
+   :updated-at (Date.)})
+
+
+
 (defn promote-let [zloc]
-  (let [cand (z/leftmost zloc)]
-    (if (and (= (z/sexpr cand) 'let) (some-> zloc z/up z/up z/up))
+  (let [[alet cand] (find-let zloc)]
+    (if (and alet (some-> zloc z/up z/up z/up))
       (-> cand
           z/right z/right
           pe/splice-killing-backward
           z/up
           (pe/wrap-around :list)
-          (z/insert-left (nd/token-node 'let))
+          (z/insert-left (nd/token-node (symbol alet)))
           (z/insert-left (-> cand z/right z/node))
-          (z/insert-left (nd/newlines 1)))
+          (z/insert-left (nd/newlines 1))
+          (replace-let-defs (z/right cand)))
       zloc)))
+
 
 
 
@@ -50,7 +86,6 @@
         (editor/move-cursor ed (update-in start-pos-zloc [:ch] #(+ % 6)))))))
 
 (defn promote-let* [ed]
-  (println "here")
   (let [pos (editor/->cursor ed)
         form (u/get-top-level-form ed pos)
         zloc (some-> form
@@ -89,6 +124,4 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.promote-let!)))})
-
-
 
