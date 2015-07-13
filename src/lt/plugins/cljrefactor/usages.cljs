@@ -77,8 +77,12 @@
 
 
 (defn find-symbol-op [ed sym]
-   (mw/create-ns-op ed {:op "find-symbol"
-                       :name sym}))
+  (let [pos (editor/->cursor ed)]
+    (mw/create-ns-op ed {:op "find-symbol"
+                         :file (-> @ed :info :path)
+                         :column (inc (:ch pos))
+                         :line (inc (:line pos))
+                         :name sym})))
 
 (behavior ::find-symbol.res
           :triggers #{:editor.eval.clj.result.refactor.find-symbol}
@@ -148,7 +152,8 @@
                          (object/update! this [:search-for] (fn [_]
                                                               {:symbol sym
                                                                :namespace ns}))
-                         (object/raise ed
+
+                          (object/raise ed
                                        :eval.custom
                                        (find-symbol-op ed sym)
                                        {:result-type :refactor.find-symbol

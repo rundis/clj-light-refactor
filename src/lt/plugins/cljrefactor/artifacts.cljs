@@ -93,7 +93,7 @@
           :debounce 500
           :reaction (fn [this ed]
                       (when-let [default-client (-> @ed :client :default)]
-                        (when-not (::fetching-deps @this)
+                        (when-not  (::fetching-deps @this)
                           (object/update! this [::fetching-deps] (fn [_] true))
                           (notifos/set-msg! "Retrieving clojars artifacts")
                           (object/raise ed
