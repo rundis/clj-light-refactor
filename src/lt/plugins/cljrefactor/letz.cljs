@@ -23,11 +23,13 @@
 (defn alet? [zloc]
   (some #{"let" "when-let" "letfn"} [(z/string zloc)]))
 
-(defn find-let [zloc]
-  (when zloc
-    (if-let [alet (-> zloc z/leftmost alet?)]
-      [alet (z/leftmost zloc)]
-      (find-let (z/up zloc)))))
+(defn find-let
+  ([zloc] (find-let zloc alet?))
+  ([zloc p?]
+   (when zloc
+     (if-let [alet (-> zloc z/leftmost p?)]
+       [alet (z/leftmost zloc)]
+       (find-let (z/up zloc))))))
 
 
 (defn- replace-let-defs [zloc let-defs]
@@ -46,11 +48,6 @@
          (take-while (complement z/end?))
          last)))
 
-(defn create-entity []
-  {:created-at (let [date (Date.)]
-                 date)
-   :updated-at (Date.)})
-
 
 
 (defn promote-let [zloc]
@@ -68,6 +65,17 @@
       zloc)))
 
 
+
+(defn move-to-let [zloc placeholder]
+  (when-let [[alet cand] (find-let zloc #(= "let" (z/string %)))]
+    (-> zloc
+        (z/replace (nd/token-node (symbol placeholder)))
+        (find-let #(= "let" (z/string %)))
+        second
+        z/right
+        (z/append-child (nd/newlines 1))
+        (z/append-child (nd/token-node (symbol placeholder)))
+        (z/append-child (z/node zloc)))))
 
 
 (defn introduce-let* [ed]
@@ -99,6 +107,30 @@
       (editor/move-cursor ed pos)
       (u/format-keep-pos ed))))
 
+(defn- token-bounds->selections [bounds line-offset]
+  (map (fn [{:keys [line start end]}]
+         {:anchor {:line (+ line-offset line) :ch start}
+          :head {:line (+ line-offset line) :ch end}}) bounds))
+
+(defn move-to-let* [ed]
+  (let [pos (editor/->cursor ed)
+        bm (editor/bookmark ed pos nil)
+        form (u/get-top-level-form ed pos)
+        zloc (some-> form
+                     :form-str
+                     z/of-string
+                     (z/find-last-by-pos (u/->zipper-pos-start pos form)))]
+
+    (when-let [res (move-to-let zloc "var-x")]
+      (editor/replace ed (:start form) (:end form) (z/root-string res))
+      (editor/move-cursor ed (update-in pos [:line] inc))
+      (u/format-keep-pos ed)
+      (let [mod-form (u/get-top-level-form ed pos)
+            ph-bounds (u/find-all-token-bounds (:form-str mod-form) "var-x")
+            cm-ed (editor/->cm-ed ed)]
+        (.setSelections cm-ed
+                        (clj->js (token-bounds->selections ph-bounds (-> form :start :line))))))))
+
 
 
 (behavior ::introduce-let!
@@ -110,6 +142,11 @@
           :triggers #{:refactor.promote-let!}
           :reaction (fn [ed]
                       (promote-let* ed)))
+
+(behavior ::move-to-let!
+          :triggers #{:refactor.move-to-let!}
+          :reaction (fn [ed]
+                      (move-to-let* ed)))
 
 
 
@@ -124,4 +161,10 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.promote-let!)))})
+
+(cmd/command {:command ::move-to-let
+              :desc "Clojure refactor: Move to let"
+              :exec (fn []
+                      (when-let [ed (pool/last-active)]
+                        (object/raise ed :refactor.move-to-let!)))})
 

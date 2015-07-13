@@ -12,6 +12,7 @@
 
  [:editor.clj.common :lt.plugins.cljrefactor.letz/introduce-let!]
  [:editor.clj.common :lt.plugins.cljrefactor.letz/promote-let!]
+ [:editor.clj.common :lt.plugins.cljrefactor.letz/move-to-let!]
 
  [:editor.clj :lt.plugins.cljrefactor.form-refactor/cycle-if!]
  [:editor.cljs :lt.plugins.cljrefactor.form-refactor/cycle-if!]

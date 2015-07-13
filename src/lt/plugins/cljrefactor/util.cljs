@@ -23,6 +23,14 @@
         (keep-indexed (fn [line content] {:line line :content content})
                       (s/split s #"\n"))))
 
+(defn find-all-token-bounds [s token]
+  (remove nil?
+          (map #(let [idx (.indexOf (:content %) token)]
+                  (when (> idx -1)
+                    (assoc % :start idx :end (+ idx (count token)))))
+               (keep-indexed (fn [line content] {:line line :content content})
+                             (s/split s #"\n")))))
+
 
 
 (defn hash-prefixed? [ed start]
