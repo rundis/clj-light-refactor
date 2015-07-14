@@ -114,7 +114,6 @@
 
 (defn move-to-let* [ed]
   (let [pos (editor/->cursor ed)
-        bm (editor/bookmark ed pos nil)
         form (u/get-top-level-form ed pos)
         zloc (some-> form
                      :form-str

@@ -1,5 +1,5 @@
 {:name "clj-light-refactor"
- :version "0.1.5"
+ :version "0.1.6"
  :author "Magnus Rundberget"
  :source "https://github.com/rundis/clj-light-refactor"
  :desc "Clojure refactoring support for Light Table"

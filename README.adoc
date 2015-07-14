@@ -30,6 +30,7 @@ WARNING: However you are on your own, you should know what you are doing! Also y
 
 == Resources
 * http://rundis.github.io/blog/2015/clj_light_refactor.html[Clojure Refactoring in Light Table] - Blogcast showcasing some of the features coming to a plugin manager near you
+* https://github.com/rundis/parembrace[Paremebrace] - A pretty awesome paredit plugin for Light Table
 
 
 == General preconditions
@@ -103,6 +104,94 @@ editors.
 
 ----
 
+=== Introduce let
+Command : **Clojure refactor: Introduce let**
+
+Introduce a let binding for expression at cursor
+
+[source,clojure]
+----
+(defn hello []
+  {:body |(str "hello" "world")
+   :title "Greeting"})
+----
+
+[source,clojure]
+----
+(defn hello []
+  {:body (let [|(str "hello" "world")]
+           )
+   :title "Greeting"})
+----
+
+=== Promote let
+Command : **Clojure refactor: Promote let**
+
+Expand the scope of the closest let one level given current position
+
+[source,clojure]
+----
+(defn hello []
+  {:body (let [hello |(str "hello" "world")]
+           hello)
+   :title "Greeting"})
+----
+
+[source,cloure]
+----
+(defn hello []
+  (let [hello (str "hello" "world")]
+    {:body hello
+     :title "Greeting"}))
+----
+
+Identical entries are also replaced for you convenience
+
+[source,clojure]
+----
+(defn create-entity []
+  {:created-at (let |[date (Date.)]
+                 date)
+   :updated-at (Date.)})
+----
+
+[source,clojure]
+----
+(defn create-entity []
+  (let [date (Date.)]
+    {:created-at date
+     :updated-at date}))
+----
+
+
+=== Move to let
+Command : **Clojure refactor: Move to let**
+
+Move expression at cursor pos to the closest let
+
+[source,clojure]
+----
+(defn hello []
+  (let [hello (str "hello" "world")]
+    {:body hello
+     :title |"Greeting"}))
+----
+
+[source,clojure]
+----
+(defn hello []
+  (let [hello (str "hello" "world")
+        var-x| "Greeting"] ;; var-x selected
+    {:body hello
+     :title var-x|}))      ;; var-x selected
+----
+
+NOTE: The var-x placeholder is selected for both occurences (multiple cursors), so to replace just start typing !
+
+
+
+
+
 === Cycle if
 Command : **Clojure refactor: Cycle if**
 
@@ -154,8 +243,8 @@ extensive refactoring support, but the flipside is manual setup and increased co
 Add the following, either in your project's __project.clj__, or in the :user profile found at __~/.lein/profiles.clj__:
 [source,clojure]
 ----
-:plugins [[refactor-nrepl "1.0.4-SNAPSHOT"]
-          [cider/cider-nrepl "0.9.0-SNAPSHOT"]]
+:plugins [[refactor-nrepl "1.1.0"]
+          [cider/cider-nrepl "0.9.1"]]
 ----
 
 
@@ -413,9 +502,10 @@ How about navigating directly to a resource file from a clojure file that refers
 Pull requests are most welcome. Please do not include the transpiled files (*_compiled*) in the PR.
 
 == History
-* Upcoming release
-** Paredit features
-** Improved handling of formatting for threading refactoring
+* 0.1.6
+** Support for refactor-nrepl 1.1.0
+** Threading refactoring and toggle-if refactor uses https://github.com/rundis/rewrite-cljs[rewrite-cljs] to preserve whitespace and comments
+** New refactorings (no middleware requirement); Introduce let, Promote let and Move to let
 * 0.1.5
 ** New feature: Jump to resource
 ** New feature: Namespace browser with jump to symbol support
