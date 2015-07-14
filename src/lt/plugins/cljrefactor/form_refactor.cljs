@@ -1,41 +1,76 @@
 (ns lt.plugins.cljrefactor.form-refactor
   (:require [lt.plugins.cljrefactor.parser :as p]
             [lt.plugins.cljrefactor.util :as u]
+            [rewrite-clj.zip :as z]
+            [rewrite-clj.zip.whitespace :as ws]
+            [rewrite-clj.node :as nd]
+            [rewrite-clj.zip.utils :as zu]
+            [clojure.zip :as zz]
             [lt.object :as object]
             [lt.objs.editor.pool :as pool]
             [lt.objs.editor :as editor]
             [lt.objs.command :as cmd]
-            [lt.plugins.paredit :as pe]
-            [lt.plugins.clojure :as cp]
-            [clojure.zip :as z]
             [clojure.string :as s])
   (:require-macros [lt.macros :refer [behavior]]))
 
 
-(defn top [zipnode]
-  (loop [n zipnode]
-    (if-not (z/up n)
-      n
-      (recur (z/up n)))))
 
-(defn if-node? [loc]
-  (when (and (seq loc) (list? (z/node loc)))
-    (-> loc z/down z/node  ((fn [s] (some #{s} ['if 'if-not]))))))
+(defn-  nodes-by-dir
+  ([zloc f] (nodes-by-dir zloc f constantly))
+  ([zloc f p?]
+   (->> zloc
+        (iterate f)
+        (take-while identity)
+        (take-while p?)
+        (map z/node))))
 
 
-(defn swap-if-nodes [loc]
-  (let [move (-> loc z/down z/right z/right z/node)]
-    (-> loc z/down z/right z/right z/remove top (z/append-child move))))
+(defn- an-if? [zloc]
+  (some #{"if" "if-not"} [(z/string zloc)]))
 
-(defn cycle-if [form-str]
-  (let [root (p/str->seq-zip form-str)
-        if-node (if-node? root)]
-    (when if-node
-      (-> root
-          swap-if-nodes
-          z/down
-          (z/replace (if (= if-node 'if) 'if-not 'if))
-          p/zip->str))))
+
+(defn- find-if [zloc]
+  (when zloc
+     (if-let [an-if (-> zloc z/leftmost an-if?)]
+       [an-if (z/leftmost zloc)]
+       (recur (z/up zloc)))))
+
+
+(defn- right-lb-or-nl [zloc]
+  (->> (-> zloc
+           zz/right
+           (nodes-by-dir zz/right ws/whitespace-or-comment?))
+       (filter #(or (nd/linebreak? %) (nd/comment? %)))))
+
+(defn shift-left [zloc]
+  (let [preserves-right (right-lb-or-nl zloc)
+        maybe-trim-ws (fn [l]
+                        (if (and (z/rightmost? l)
+                                 (not (->> l right-lb-or-nl (filter nd/comment?) seq)))
+                          (zu/remove-right-while l ws/whitespace?)
+                          l))
+        maybe-add-lb (fn [l]
+                       (if (and (not (seq preserves-right))
+                                (-> zloc z/left right-lb-or-nl seq))
+                         (z/insert-left l (nd/newlines 1))
+                         l))]
+    (-> zloc
+        (zu/remove-right-while ws/whitespace-or-comment?)
+        zu/remove-and-move-left
+        z/left
+        maybe-trim-ws
+        (z/insert-left (z/node zloc))
+        ((partial reduce z/insert-left) preserves-right)
+        maybe-add-lb)))
+
+
+(defn cycle-if [zloc]
+  (when-let [[an-if cand] (find-if zloc)]
+    (-> cand
+        z/rightmost
+        shift-left
+        z/leftmost
+        (z/replace (symbol (if (= an-if "if") "if-not" "if"))))))
 
 
 (defn cycle-col [form-str]
@@ -49,44 +84,6 @@
        (= (.substr form-str 0 2) "#{") (wrap-in "(" ")" 2)
        :else nil))))
 
-
-(defn find-node [start candidate-str]
-  (loop [cur start]
-    (cond
-     (= (-> cur z/node str) candidate-str) cur
-     (not (z/end? cur)) (recur (z/next cur))
-    :else nil)))
-
-
-
-(defn move-up [form-str candidate-str]
-  (let [root (p/str->seq-zip form-str)
-        loc? (when (seq root) (find-node root candidate-str))]
-    (when (and loc? (z/node (z/remove loc?)))
-      (z/root (z/insert-left (z/remove loc?) (z/node loc?))))))
-
-;;(move-up "(+ 1 (\"__jalla__\" \"dill\"))" "__jalla__")
-
-;;(move-up "(\"__jalla__\")" "__jalla__")
-
-
-;; DOH no negative lookbehind in JS
-;;"(?<!if|\bif-not\b)\s\(" "\n("
-(defn inject-nl[form-str]
-  (let [idx-a (.indexOf form-str "if (")
-        idx-b (.indexOf form-str "if-not (")]
-    (cond
-     (= -1 idx-a idx-b) (s/replace form-str #"\s\(" "\n(")
-     (> idx-a idx-b) (str (.substr form-str 0 (+ idx-a 4))
-                          (inject-nl (.substr form-str (+ idx-a 4))))
-     :else (str (.substr form-str 0 (+ idx-b 8))
-                (inject-nl (.substr form-str (+ idx-b 8)))))))
-
-
-;; Silly simplistic...
-(defn format-form [form-str]
-  (-> form-str
-      inject-nl))
 
 
 (defn replace-cmd [ed replace-fn & {:keys [fmt]}]
@@ -105,12 +102,25 @@
           (editor/move-cursor ed p))))))
 
 
+(defn cycle-if* [ed]
+  (let [pos (editor/->cursor ed)
+        form (u/get-top-level-form ed pos)
+        zloc (some-> form
+                     :form-str
+                     z/of-string
+                     (z/find-last-by-pos (u/->zipper-pos-start pos form)))]
+
+    (when-let [res (some-> zloc cycle-if z/root-string)]
+      (editor/replace ed (:start form) (:end form) res)
+      (editor/move-cursor ed pos)
+      (u/format-keep-pos ed))))
+
 
 
 (behavior ::cycle-if!
           :triggers #{:refactor.cycle-if!}
           :reaction (fn [ed]
-                      (replace-cmd ed cycle-if :fmt true)))
+                      (cycle-if* ed)))
 
 (behavior ::cycle-col!
           :triggers #{:refactor.cycle-col!}
@@ -131,25 +141,3 @@
               :exec (fn []
                       (when-let [ed (pool/last-active)]
                         (object/raise ed :refactor.cycle-col!)))})
-
-
-;; (cmd/command {:command ::move-up
-;;              :desc "Clojure refactor: Move node up"
-;;              :exec (fn []
-;;                      (let [ed (pool/last-active)
-;;                            pos (editor/->cursor ed)
-;;                            token (cp/find-symbol-at-cursor ed)
-;;                            move-node (:string token)
-;;                            top-form (u/get-top-level-form ed pos)]
-
-;;                        (when-let [moved (move-up (u/replace-token (:form-str top-form)
-;;                                                                   {:line (- (:line pos) (:line (:start top-form)))
-;;                                                                    :start (:start token)
-;;                                                                    :end (:end token)}
-;;                                                                   "__move-node__")
-;;                                                  "__move-node__")]
-
-;;                          (let [bounds (u/find-token-bounds moved "__move-node__")
-;;                                replaced (u/replace-token moved bounds move-node)]
-;;                           (editor/replace ed (:start top-form) (:end top-form) replaced)
-;;                            ))))})
