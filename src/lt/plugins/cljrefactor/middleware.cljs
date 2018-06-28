@@ -7,24 +7,24 @@
 (defn create-op [params]
   (str
    "(do
-     (require 'refactor-nrepl.client)
      (require 'clojure.tools.nrepl)
+     (let [port (-> \".nrepl-port\" slurp Integer/parseInt)]
      (clojure.tools.nrepl/message
-       (clojure.tools.nrepl/client (refactor-nrepl.client/connect) 10000)\n"
-       (pr-str params) "))"))
+       (clojure.tools.nrepl/client (clojure.tools.nrepl/connect :port port :host \"localhost\") 10000)\n"
+       (pr-str params) ")))"))
 
 
 (defn create-ns-op [ed params]
   (let [filename (-> @ed :info :path)]
     (str
      "(do
-     (require 'refactor-nrepl.client)
      (require 'clojure.tools.nrepl)
      (require 'lighttable.nrepl.eval)\n"
-     "(clojure.tools.nrepl/message
-     (clojure.tools.nrepl/client (refactor-nrepl.client/connect) 10000)\n"
+     "(let [port (-> \".nrepl-port\" slurp Integer/parseInt)]
+     (clojure.tools.nrepl/message
+     (clojure.tools.nrepl/client (clojure.tools.nrepl/connect :port port :host \"localhost\") 10000)\n"
      (str (s/join "" (drop-last (pr-str params))) " :ns "
-          "(lighttable.nrepl.eval/file->ns \"" filename "\")}") "))")))
+          "(lighttable.nrepl.eval/file->ns \"" filename "\")}") ")))")))
 
 
 (defn extract-result-group [res k]
@@ -44,6 +44,3 @@
                  (merge
                   (into {} (map #(hash-map % (extract-result-group-single res %)) singles))
                   (into {} (map #(hash-map % (extract-result-group res %)) multiples))))])))
-
-
-

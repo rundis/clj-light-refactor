@@ -64,7 +64,8 @@
 (defn usages->items [usages]
   (vec (->> usages
             (map (fn [{x :occurrence}]
-                   (apply hash-map (cljs.reader/read-string x)))))))
+                    (let [r (cljs.reader/read-string x)]
+                      (if (map? r) r (apply hash-map r))))))))
 
 (defn items->view [items]
   (->> items
